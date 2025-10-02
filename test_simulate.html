@@ -265,7 +265,7 @@
         // Auto-run first test on page load
         document.addEventListener('DOMContentLoaded', function() {
             setTimeout(() => {
-                document.getElementById('simulationForm').dispatchEvent(new Event('submit'));
+                document.getElementById('simulationForm').submit();
             }, 500);
         });
     </script>
