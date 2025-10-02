@@ -1,0 +1,17 @@
+{
+    "name": "bionauts/sharkscope",
+    "description": "SharkScope by Team Bionauts for NASA Space App Challenge 2025",
+    "type": "project",
+    "autoload": {
+        "psr-4": {
+            "Bionauts\\Sharkscope\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Bionauts",
+            "email": "dev@bionauts.space"
+        }
+    ],
+    "require": {}
+}
