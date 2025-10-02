@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SharkScope Tile Server Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .tile-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 256px);
+            gap: 5px;
+            margin: 20px 0;
+        }
+        .tile {
+            border: 1px solid #ccc;
+            width: 256px;
+            height: 256px;
+        }
+        .tile-info {
+            background: #f5f5f5;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>SharkScope Tile Server Test</h1>
+    
+    <div class="tile-info">
+        <h3>Test Parameters:</h3>
+        <p><strong>Date:</strong> 2025-09-05</p>
+        <p><strong>Zoom Level:</strong> 2</p>
+        <p><strong>Coverage:</strong> Global view with 4x4 tiles</p>
+    </div>
+    
+    <h3>Sample Tiles (Zoom Level 2):</h3>
+    <div class="tile-grid">
+        <img class="tile" src="api/tiles.php?date=2025-09-05&z=2&x=0&y=0" alt="Tile 0,0" title="Tile z=2, x=0, y=0">
+        <img class="tile" src="api/tiles.php?date=2025-09-05&z=2&x=1&y=0" alt="Tile 1,0" title="Tile z=2, x=1, y=0">
+        <img class="tile" src="api/tiles.php?date=2025-09-05&z=2&x=2&y=0" alt="Tile 2,0" title="Tile z=2, x=2, y=0">
+        <img class="tile" src="api/tiles.php?date=2025-09-05&z=2&x=3&y=0" alt="Tile 3,0" title="Tile z=2, x=3, y=0">
+        
+        <img class="tile" src="api/tiles.php?date=2025-09-05&z=2&x=0&y=1" alt="Tile 0,1" title="Tile z=2, x=0, y=1">
+        <img class="tile" src="api/tiles.php?date=2025-09-05&z=2&x=1&y=1" alt="Tile 1,1" title="Tile z=2, x=1, y=1">
+        <img class="tile" src="api/tiles.php?date=2025-09-05&z=2&x=2&y=1" alt="Tile 2,1" title="Tile z=2, x=2, y=1">
+        <img class="tile" src="api/tiles.php?date=2025-09-05&z=2&x=3&y=1" alt="Tile 3,1" title="Tile z=2, x=3, y=1">
+        
+        <img class="tile" src="api/tiles.php?date=2025-09-05&z=2&x=0&y=2" alt="Tile 0,2" title="Tile z=2, x=0, y=2">
+        <img class="tile" src="api/tiles.php?date=2025-09-05&z=2&x=1&y=2" alt="Tile 1,2" title="Tile z=2, x=1, y=2">
+        <img class="tile" src="api/tiles.php?date=2025-09-05&z=2&x=2&y=2" alt="Tile 2,2" title="Tile z=2, x=2, y=2">
+        <img class="tile" src="api/tiles.php?date=2025-09-05&z=2&x=3&y=2" alt="Tile 3,2" title="Tile z=2, x=3, y=2">
+        
+        <img class="tile" src="api/tiles.php?date=2025-09-05&z=2&x=0&y=3" alt="Tile 0,3" title="Tile z=2, x=0, y=3">
+        <img class="tile" src="api/tiles.php?date=2025-09-05&z=2&x=1&y=3" alt="Tile 1,3" title="Tile z=2, x=1, y=3">
+        <img class="tile" src="api/tiles.php?date=2025-09-05&z=2&x=2&y=3" alt="Tile 2,3" title="Tile z=2, x=2, y=3">
+        <img class="tile" src="api/tiles.php?date=2025-09-05&z=2&x=3&y=3" alt="Tile 3,3" title="Tile z=2, x=3, y=3">
+    </div>
+    
+    <div class="tile-info">
+        <h3>Individual Tile URLs:</h3>
+        <p>Test a specific tile: <a href="api/tiles.php?date=2025-09-05&z=2&x=1&y=1" target="_blank">Tile z=2, x=1, y=1</a></p>
+        <p>Higher zoom: <a href="api/tiles.php?date=2025-09-05&z=8&x=45&y=98" target="_blank">Tile z=8, x=45, y=98</a></p>
+    </div>
+    
+    <div class="tile-info">
+        <h3>Color Legend:</h3>
+        <p><span style="color: #0A192F;">■</span> Deep Blue (0.0) - Low TCHI values</p>
+        <p><span style="color: #2ECC71;">■</span> Green (0.4) - Medium TCHI values</p>
+        <p><span style="color: #F1C40F;">■</span> Yellow (0.6) - High TCHI values</p>
+        <p><span style="color: #E74C3C;">■</span> Red (0.8-1.0) - Very high TCHI values</p>
+    </div>
+</body>
+</html>
