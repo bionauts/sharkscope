@@ -223,11 +223,15 @@ class TchiProcessor
         $this->runCmd(sprintf('%s %s %s %s', $this->gdalWarpCmd, $warpOpts, $this->q($vgosIdentifier), $this->q($vgosProcPath)), 'gdalwarp (vgos)');
 
         $this->log('[Process] Calculating EKE from velocity components...');
-        $calcEkeFormula = '"0.5 * (A**2 + B**2)"';
+        // Use custom rasterio-based script instead of gdal_calc
         $this->runCmd(
-            sprintf('%s -A %s -B %s --calc=%s --outfile %s -co "COMPRESS=LZW" --overwrite',
-                $this->gdalCalcCmd, $this->q($ugosProcPath), $this->q($vgosProcPath), $calcEkeFormula, $this->q($this->ekeProcPath)
-            ), 'gdal_calc (EKE)'
+            sprintf('"%s" %s %s %s %s',
+                'C:\Python313\python.exe',
+                $this->q(dirname(__DIR__) . '\\calculate_eke.py'),
+                $this->q($ugosProcPath),
+                $this->q($vgosProcPath),
+                $this->q($this->ekeProcPath)
+            ), 'EKE calculation (rasterio)'
         );
 
         $this->log('[Process] Warping Bathymetry...');
@@ -615,8 +619,8 @@ class TchiProcessor
 
 	private function detectGdalCalc(): string
 {
-    $pythonPath = 'C:\Python313\python.exe';
-    $gdalCalcScriptPath = 'C:\Program Files\GDAL\gdal_calc.py';
+    $pythonPath = '"C:\Python313\python.exe"';
+    $gdalCalcScriptPath = '"' . dirname(__DIR__) . '\\gdal_calc_rasterio.py"';
 
     return $pythonPath . ' ' . $gdalCalcScriptPath;
 }
