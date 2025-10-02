@@ -146,8 +146,13 @@ try {
     $lonModifier = cos(deg2rad($lon)) * 0.03; // Small variation based on longitude
     
     // Get base response or default
-    $baseResponse = $simulationResponses[$preyCode] ?? $simulationResponses['unknown_species'];
-    
+    if (isset($simulationResponses[$preyCode])) {
+        $baseResponse = $simulationResponses[$preyCode];
+    } elseif (isset($simulationResponses['unknown_species'])) {
+        $baseResponse = $simulationResponses['unknown_species'];
+    } else {
+        returnError("Unknown prey code and no fallback available.", 500);
+    }
     // Apply location-based modifications
     $response = [
         'status' => $baseResponse['status'],
