@@ -1,5 +1,7 @@
 # SharkScope 🦈
 
+🚀 Live Demo: https://bionauts.space/sharkscope
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Challenge: Sharks from Space](https://img.shields.io/badge/NASA%20Space%20Apps%20Challenge%202025-Sharks%20from%20Space-brightgreen)](https://www.spaceappschallenge.org/2025/challenges/sharks-from-space/)
 
