@@ -67,29 +67,7 @@ function tileToLatLon($x, $y, $z) {
     ];
 }
 
-// Function to create color relief file
-function createColorReliefFile($tempDir) {
-    $colorFile = $tempDir . '/color_relief.txt';
-    
-    // Define color palette from deep blue to red
-    $colorMap = [
-        "0.0 10 25 47",      // Deep blue (#0A192F)
-        "0.2 20 50 94",      // Medium blue
-        "0.4 46 204 113",    // Green (#2ECC71)
-        "0.6 241 196 15",    // Yellow (#F1C40F)
-        "0.8 231 76 60",     // Red (#E74C3C)
-        "1.0 231 76 60"      // Red (#E74C3C)
-    ];
-    
-    $content = implode("\n", $colorMap) . "\n";
-    
-    if (file_put_contents($colorFile, $content) === false) {
-        logError("Failed to create color relief file");
-        return false;
-    }
-    
-    return $colorFile;
-}
+// No longer using GDAL CLI color-relief; rendering is handled in Python with Rasterio
 
 // Get and validate parameters
 $date = $_GET['date'] ?? '';
@@ -137,64 +115,38 @@ if (!mkdir($tempDir, 0755, true)) {
 $bounds = tileToLatLon($x, $y, $z);
 
 // Define temporary file paths
-$tempTile = $tempDir . "/tile_${z}_${x}_${y}.tif";
-$tempColored = $tempDir . "/colored_tile_${z}_${x}_${y}.tif";
 $outputPng = $tempDir . "/output_tile_${z}_${x}_${y}.png";
 
 try {
-    // Step 1: Extract the tile area using gdal_translate
-    $gdalCommand = sprintf(
-        'gdal_translate -of GTiff -projwin %f %f %f %f "%s" "%s" 2>&1',
+    // Render tile via Python Rasterio renderer (avoids GDAL CLI requirement)
+    $python = $config['paths']['python_executable'] ?? null;
+    if (!$python) {
+        logError('Python executable not configured');
+        returnBlankTile();
+    }
+
+    $home = null;
+    if (preg_match('#^/home/([^/]+)/#', $python, $m)) { $home = "/home/{$m[1]}"; }
+    $envPrefix = $home ? ('HOME=' . escapeshellarg($home) . ' ') : '';
+
+    $scriptPath = $config['paths']['src_dir'] . DIRECTORY_SEPARATOR . 'python' . DIRECTORY_SEPARATOR . 'render_tile.py';
+
+    $cmd = sprintf(
+        '%s%s %s %s %f %f %f %f %s 2>&1',
+        $envPrefix,
+        escapeshellarg($python),
+        escapeshellarg($scriptPath),
+        escapeshellarg($tchiFile),
         $bounds['minLon'],
-        $bounds['maxLat'],
-        $bounds['maxLon'],
         $bounds['minLat'],
-        $tchiFile,
-        $tempTile
+        $bounds['maxLon'],
+        $bounds['maxLat'],
+        escapeshellarg($outputPng)
     );
-    
-    $gdalOutput = shell_exec($gdalCommand);
-    
-    // Check if the extraction was successful
-    if (!file_exists($tempTile)) {
-        logError("gdal_translate failed. Command: $gdalCommand. Output: $gdalOutput");
-        returnBlankTile();
-    }
-    
-    // Step 2: Create color relief file
-    $colorFile = createColorReliefFile($tempDir);
-    if (!$colorFile) {
-        returnBlankTile();
-    }
-    
-    // Step 3: Apply color relief using gdaldem
-    $gdaldemCommand = sprintf(
-        'gdaldem color-relief "%s" "%s" "%s" -of GTiff 2>&1',
-        $tempTile,
-        $colorFile,
-        $tempColored
-    );
-    
-    $gdaldemOutput = shell_exec($gdaldemCommand);
-    
-    // Check if color relief was successful
-    if (!file_exists($tempColored)) {
-        logError("gdaldem color-relief failed. Command: $gdaldemCommand. Output: $gdaldemOutput");
-        returnBlankTile();
-    }
-    
-    // Step 4: Convert to PNG and resize to exactly 256x256
-    $gdalTranslateCommand = sprintf(
-        'gdal_translate -of PNG -outsize 256 256 "%s" "%s" 2>&1',
-        $tempColored,
-        $outputPng
-    );
-    
-    $translateOutput = shell_exec($gdalTranslateCommand);
-    
-    // Check if PNG conversion was successful
+
+    $pyOut = shell_exec($cmd);
     if (!file_exists($outputPng)) {
-        logError("PNG conversion failed. Command: $gdalTranslateCommand. Output: $translateOutput");
+        logError("render_tile.py failed. Cmd: $cmd Output: $pyOut");
         returnBlankTile();
     }
     
@@ -217,7 +169,7 @@ try {
     returnBlankTile();
 } finally {
     // Clean up temporary files
-    $filesToClean = [$tempTile, $tempColored, $outputPng, $colorFile ?? ''];
+    $filesToClean = [$outputPng];
     foreach ($filesToClean as $file) {
         if ($file && file_exists($file)) {
             unlink($file);
