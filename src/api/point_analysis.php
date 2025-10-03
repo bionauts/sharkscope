@@ -26,12 +26,18 @@ header('Access-Control-Allow-Origin: *'); // Allow CORS for web applications
 // Use configured Python interpreter and escape paths for shell safety
 $pythonPath = escapeshellarg($config['paths']['python_executable']);
 $queryScriptPath = escapeshellarg($config['paths']['src_dir'] . DIRECTORY_SEPARATOR . 'python' . DIRECTORY_SEPARATOR . 'query_raster.py');
-// Derive HOME from interpreter path (/home/<user>/...) for cPanel Python App wrappers
+
+// Build environment prefix: HOME (for cPanel Python), plus GDAL vars if provided
 $home = null;
 if (isset($config['paths']['python_executable']) && preg_match('#^/home/([^/]+)/#', $config['paths']['python_executable'], $m)) {
     $home = "/home/{$m[1]}";
 }
-$envPrefix = $home ? ('HOME=' . escapeshellarg($home) . ' ') : '';
+$envParts = [];
+if ($home) { $envParts[] = 'HOME=' . escapeshellarg($home); }
+if (!empty($config['gdal']['data'])) { $envParts[] = 'GDAL_DATA=' . escapeshellarg($config['gdal']['data']); }
+if (!empty($config['gdal']['proj'])) { $envParts[] = 'PROJ_LIB=' . escapeshellarg($config['gdal']['proj']); }
+if (!empty($config['gdal']['bin_dir'])) { $envParts[] = 'PATH=' . escapeshellarg($config['gdal']['bin_dir'] . PATH_SEPARATOR . getenv('PATH')); }
+$envPrefix = $envParts ? (implode(' ', $envParts) . ' ') : '';
 
 // Function to log errors
 function logError($message) {
@@ -79,7 +85,7 @@ function getAvailableDates($dataDir) {
  * This replaces the less reliable direct gdallocationinfo -geoloc command.
  */
 function getPixelValue($rasterFile, $lat, $lon) {
-    global $pythonPath, $queryScriptPath; // Use global config variables
+    global $pythonPath, $queryScriptPath, $envPrefix; // Use global config variables
 
     if (!file_exists($rasterFile)) {
         logError("Raster file not found: " . $rasterFile);
