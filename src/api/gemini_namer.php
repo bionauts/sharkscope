@@ -12,8 +12,14 @@
  * Get the cache file path for name storage.
  */
 function getNameCachePath() {
-    $basePath = dirname(__DIR__);
-    $cacheDir = $basePath . '/data/cache';
+    // Use global config if available, otherwise fall back to relative path
+    if (isset($GLOBALS['config'])) {
+        $cacheDir = $GLOBALS['config']['paths']['data_dir'] . '/cache';
+    } else {
+        $basePath = dirname(__DIR__, 2); // Go up two levels to project root
+        $cacheDir = $basePath . '/data/cache';
+    }
+    
     if (!is_dir($cacheDir)) {
         @mkdir($cacheDir, 0755, true);
     }
@@ -103,8 +109,20 @@ function cacheGeneratedName($lat, $lon, $name) {
 }
 
 function generateRestaurantName($lat, $lon) {
-    $apiKey = 'AIzaSyCZI1U1T9XmOAh_gV15J2FgVA3xjdu5OSw';
+    // Use global config if available
+    $apiKey = '';
     $model = 'gemini-2.0-flash-exp';
+    
+    if (isset($GLOBALS['config'])) {
+        $apiKey = $GLOBALS['config']['gemini']['api_key'] ?? '';
+        $model = $GLOBALS['config']['gemini']['model'] ?? 'gemini-2.0-flash-exp';
+    }
+    
+    if (empty($apiKey)) {
+        error_log("Gemini API key not configured");
+        return null;
+    }
+    
     $endpoint = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$apiKey}";
     
     $prompt = sprintf(

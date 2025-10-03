@@ -14,6 +14,9 @@
  * Example: /api/tiles.php?date=2025-09-05&z=8&x=45&y=98
  */
 
+// Load configuration
+require_once __DIR__ . '/../../config/bootstrap.php';
+
 // Set error reporting
 error_reporting(E_ALL);
 ini_set('display_errors', 0); // Don't display errors in output as it will corrupt the image
@@ -114,8 +117,7 @@ if ($x < 0 || $x >= $maxTiles || $y < 0 || $y >= $maxTiles) {
 }
 
 // Define paths
-$basePath = dirname(__DIR__); // Go up one level from api directory
-$dataPath = $basePath . "/data/processed/$date";
+$dataPath = $config['paths']['data_dir'] . "/processed/$date";
 $tchiFile = $dataPath . "/tchi.tif";
 
 // Check if TCHI file exists

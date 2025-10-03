@@ -67,24 +67,23 @@ class TchiProcessor
 	 * Constructor
 	 *
 	 * @param \PDO $pdo Active PDO connection
-	 * @param array $config Optional configuration overrides:
-	 * - 'bathymetry_path': local path to static bathymetry raster
-	 * - 'http_headers': array of HTTP headers for cURL (e.g., ["Authorization: Bearer <token>"])
+	 * @param array $globalConfig Global configuration array from config.php
+	 * @param array $options Optional configuration overrides:
 	 * - 'date': override capture date (YYYY-MM-DD), defaults to current UTC date
 	 */
-	public function __construct(\PDO $pdo, array $config = [])
+	public function __construct(\PDO $pdo, array $globalConfig, array $options = [])
 	{
 		$this->pdo = $pdo;
 
 		// Date (UTC) for today; can be overridden for reprocessing past dates
-		$this->today = $config['date'] ?? gmdate('Y-m-d');
+		$this->today = $options['date'] ?? gmdate('Y-m-d');
 
-		// Project root is one level up from this file (php/ -> project root)
-		$this->projectRoot = \dirname(__DIR__);
+		// Use project root from global config
+		$this->projectRoot = $globalConfig['paths']['project_root'];
 
 		// Data directories
-		$this->rawBaseDir = $this->projectRoot . DIRECTORY_SEPARATOR . 'data' . DIRECTORY_SEPARATOR . 'raw';
-		$this->processedBaseDir = $this->projectRoot . DIRECTORY_SEPARATOR . 'data' . DIRECTORY_SEPARATOR . 'processed';
+		$this->rawBaseDir = $globalConfig['paths']['data_dir'] . DIRECTORY_SEPARATOR . 'raw';
+		$this->processedBaseDir = $globalConfig['paths']['data_dir'] . DIRECTORY_SEPARATOR . 'processed';
 		$this->todayRawDir = $this->rawBaseDir . DIRECTORY_SEPARATOR . $this->today;
 		$this->todayProcessedDir = $this->processedBaseDir . DIRECTORY_SEPARATOR . $this->today;
 
@@ -96,21 +95,25 @@ class TchiProcessor
 		$dateObject = new \DateTime($this->today, new \DateTimeZone('UTC'));
 		$this->sstUrl = $this->buildMurSstUrlForDate($dateObject);
 		$this->chlaUrl = $this->buildViirsChlaUrlForDate($dateObject);
-		// EKE URL: keep a simple recent placeholder for hackathon purposes
-		$this->ekeUrl = 'https://my.cmems-du.eu/motu-web/Motu?service=cgls&product=cmems_obs-ssh_med_phy-ssh_my-multi-yr&variable=eke&time=' . $dateObject->format('Y-m-d') . 'T00:00:00Z';
+		// EKE URL: use from config or fallback to placeholder
+		$this->ekeUrl = $globalConfig['urls']['eke'] ?? ('https://my.cmems-du.eu/motu-web/Motu?service=cgls&product=cmems_obs-ssh_med_phy-ssh_my-multi-yr&variable=eke&time=' . $dateObject->format('Y-m-d') . 'T00:00:00Z');
 
 		if (empty($this->sstUrl) || empty($this->chlaUrl) || empty($this->ekeUrl)) {
 			throw new \RuntimeException('One or more download URLs could not be constructed. Please check configuration.');
 		}
 
-		$this->httpHeaders = $config['http_headers'] ?? [];
+		$this->httpHeaders = $options['http_headers'] ?? [];
 
 		// Static bathymetry path; ensure file exists
-		$this->bathymetrySourcePath = $config['bathymetry_path']
-			?? ($this->projectRoot . DIRECTORY_SEPARATOR . 'data' . DIRECTORY_SEPARATOR . 'static' . DIRECTORY_SEPARATOR . 'bathymetry.tif');
+		$this->bathymetrySourcePath = $options['bathymetry_path']
+			?? ($globalConfig['paths']['data_dir'] . DIRECTORY_SEPARATOR . 'static' . DIRECTORY_SEPARATOR . 'bathymetry.tif');
 
 		// Resolve GDAL calc command
 		$this->gdalCalcCmd = $this->detectGdalCalc();
+		
+		// Use GDAL commands from config
+		$this->gdalWarpCmd = $globalConfig['gdal']['warp_cmd'] ?? 'gdalwarp';
+		$this->gdalDemCmd = $globalConfig['gdal']['dem_cmd'] ?? 'gdaldem';
 
 		// Predefine output file paths (processed)
 		$this->sstProcPath = $this->todayProcessedDir . DIRECTORY_SEPARATOR . 'sst_proc.tif';

@@ -11,6 +11,9 @@
  * * Example: /api/point_analysis.php?lat=34.5&lon=-120.2
  */
 
+// Load configuration and database connection
+require_once __DIR__ . '/../../config/bootstrap.php';
+
 // Set error reporting
 error_reporting(E_ALL);
 ini_set('display_errors', 0); // Don't display errors in output as it will corrupt JSON
@@ -21,8 +24,8 @@ header('Access-Control-Allow-Origin: *'); // Allow CORS for web applications
 
 // --- Configuration for Python Interop ---
 // IMPORTANT: Update this path to your Python executable
-$pythonPath = '"C:\Python313\python.exe"'; 
-$queryScriptPath = '"' . dirname(__DIR__) . DIRECTORY_SEPARATOR . 'query_raster.py"';
+$pythonPath = $config['paths']['python_executable'];
+$queryScriptPath = '"' . $config['paths']['src_dir'] . DIRECTORY_SEPARATOR . 'python' . DIRECTORY_SEPARATOR . 'query_raster.py"';
 
 // Function to log errors
 function logError($message) {
@@ -41,8 +44,8 @@ function returnError($message, $code = 400) {
 }
 
 // Function to find all available processed data dates
-function getAvailableDates($basePath) {
-    $processedPath = $basePath . "/data/processed";
+function getAvailableDates($dataDir) {
+    $processedPath = $dataDir . "/processed";
     $dates = [];
     
     if (!is_dir($processedPath)) {
@@ -156,15 +159,14 @@ if ($lon === null || $lon < -180 || $lon > 180) {
 }
 
 // Define paths
-$basePath = dirname(__DIR__); // Go up one level from /api
-$processedDataPath = $basePath . "/data/processed";
+$processedDataPath = $config['paths']['data_dir'] . "/processed";
 
 if (!is_dir($processedDataPath)) {
     returnError("Processed data directory not found.", 500);
 }
 
 try {
-    $availableDates = getAvailableDates($basePath);
+    $availableDates = getAvailableDates($config['paths']['data_dir']);
     
     if (empty($availableDates)) {
         returnError("No processed data available.", 404);

@@ -2,7 +2,11 @@
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 
+require_once __DIR__ . '/../../config/bootstrap.php';
 require_once __DIR__ . '/gemini_namer.php';
+
+// Make config available globally for gemini_namer functions
+$GLOBALS['config'] = $config;
 
 $date = $_GET['date'] ?? null;
 $count = isset($_GET['count']) ? (int) $_GET['count'] : 10;
@@ -19,8 +23,7 @@ if ($count <= 0) {
 
 $count = max(1, min($count, 50));
 
-$basePath = dirname(__DIR__);
-$tchiPath = $basePath . "/data/processed/{$date}/tchi.tif";
+$tchiPath = $config['paths']['data_dir'] . "/processed/{$date}/tchi.tif";
 
 if (!file_exists($tchiPath)) {
     http_response_code(404);
@@ -29,8 +32,8 @@ if (!file_exists($tchiPath)) {
 }
 
 // --- Configuration for Python Interop ---
-$pythonPath = '"C:\Python313\python.exe"'; // Ensure this path is correct
-$hotspotScriptPath = '"' . $basePath . DIRECTORY_SEPARATOR . 'find_hotspots.py"';
+$pythonPath = $config['paths']['python_executable'];
+$hotspotScriptPath = '"' . $config['paths']['src_dir'] . DIRECTORY_SEPARATOR . 'python' . DIRECTORY_SEPARATOR . 'find_hotspots.py"';
 
 $command = sprintf(
     '%s %s %s %d',

@@ -1,0 +1,9 @@
+# Allow API endpoints to be accessed
+# This directory contains public API endpoints
+
+# Prevent directory listing
+Options -Indexes
+
+# Enable error logging
+php_flag display_errors Off
+php_flag log_errors On

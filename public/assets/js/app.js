@@ -1,236 +1,7 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <title>SharkScope — Shark Habitat Support (Demo, Mock Only)</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-  <!-- Leaflet -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <!-- Chart.js -->
-  <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
-  <!-- html2canvas for export -->
-  <script defer src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-  <style>
-    :root{
-      --bg:#0A192F; --panel:#0F2547; --fg:#E6EDF3; --muted:#9AA4AE; --border:#1C325A;
-      --accent:#3BA3FF; --good:#2ECC71; --mid:#F1C40F; --bad:#E74C3C; --focus:#86B7FE;
-      --violet:#9b6cff;
-    }
-    *{box-sizing:border-box}
-    html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:Inter,system-ui,Segoe UI,Arial,sans-serif}
-    a{color:#8bc1ff}
-    .app{display:grid;grid-template-rows:auto 1fr auto;min-height:100%}
-    header{display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid var(--border);position:sticky;top:0;background:rgba(10,25,47,.9);backdrop-filter:saturate(120%) blur(4px);z-index:10}
-    .brand{font-weight:700;letter-spacing:.3px}
-    .pill{border:1px solid var(--border);padding:2px 8px;border-radius:999px;font-size:12px;color:var(--muted)}
-    .grow{flex:1}
-    .toolbar{display:flex;gap:8px;align-items:center}
-    .btn{background:transparent;border:1px solid var(--border);color:var(--fg);padding:6px 10px;border-radius:8px;cursor:pointer}
-    .btn:hover{border-color:#2b4b86}
-    .btn-primary{background:#1b3a6a;border-color:#1b3a6a}
-    .btn-primary:hover{background:#234a86}
-    .btn-toggle[aria-pressed="true"]{background:#18335f;border-color:#2b4b86}
-    .seg{display:inline-flex;border:1px solid var(--border);border-radius:10px;overflow:hidden}
-    .seg button{border:0;padding:6px 10px;background:transparent;color:var(--fg);cursor:pointer}
-    .seg button[aria-pressed="true"]{background:#16315a}
-    .kbd{border:1px solid var(--border);border-bottom-width:2px;border-radius:6px;padding:0 6px;font:12px/18px ui-monospace,Menlo,Consolas,monospace;color:var(--muted)}
-    main{display:grid;grid-template-columns:2fr 1fr;gap:12px;padding:12px}
-    @media (max-width: 980px){ main{grid-template-columns:1fr} }
-    .map-wrap{position:relative;min-height:60vh;border:1px solid var(--border);border-radius:12px;overflow:hidden}
-    #map{position:absolute;inset:0}
-    .overlay{position:absolute;z-index:5}
-    .top-center{top:10px;left:50%;transform:translateX(-50%)}
-    .bottom-left{left:10px;bottom:10px}
-    .bottom-center{left:50%;bottom:10px;transform:translateX(-50%)}
-    .legend{background:var(--panel);border:1px solid var(--border);padding:10px;border-radius:10px}
-    .sidebar{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:12px;min-height:60vh}
-    .cards{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-    .card{border:1px solid var(--border);border-radius:10px;padding:10px}
-    .title{font-weight:600;margin-bottom:6px}
-    .big{font-size:28px;font-weight:700}
-    .muted{color:var(--muted)}
-    .bars{display:grid;gap:8px}
-    .bar{display:grid;grid-template-columns:110px 1fr 48px;gap:8px;align-items:center}
-    .bar .track{height:10px;border-radius:6px;background:#0b1a33;border:1px solid var(--border);overflow:hidden}
-    .bar .fill{height:100%;background:linear-gradient(90deg,var(--good),var(--mid),var(--bad))}
-    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-    footer{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border-top:1px solid var(--border)}
-    input[type="date"]{background:#fff;color:#000;border:1px solid #D0D7DE;padding:6px 8px;border-radius:8px}
-    input[type="range"]{accent-color:#4ea1ff}
-    .range-hint{font-size:11px;color:var(--muted);text-align:center;margin-top:4px}
-    .cross{width:18px;height:18px;border:2px solid #fff;border-radius:50%;box-shadow:0 0 0 2px rgba(0,0,0,.3);position:relative;background:rgba(255,255,255,.1)}
-    .cross:before,.cross:after{content:"";position:absolute;background:#fff}
-    .cross:before{left:50%;top:2px;bottom:2px;width:2px;transform:translateX(-50%)}
-    .cross:after{top:50%;left:2px;right:2px;height:2px;transform:translateY(-50%)}
-    .fin{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:rgba(155,108,255,.18);border:1px solid var(--violet);box-shadow:0 0 0 2px rgba(0,0,0,.25)}
-    .fin span{font-size:16px}
-    .fin-label{background:rgba(0,0,0,.45);color:#fff;padding:2px 6px;border-radius:6px;font-size:11px;margin-top:2px;white-space:nowrap; min-width: fit-content;}
-    .backdrop{position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; z-index:4000}
-    .backdrop.open{display:flex}
-    .modal{background:var(--panel); border:1px solid var(--border); border-radius:12px; max-width:1100px; width:min(96vw,1100px); max-height:90vh; display:flex; flex-direction:column; z-index:5000}
-    .modal header,.modal footer{padding:10px 14px;border-bottom:1px solid var(--border)}
-    .modal footer{border-top:1px solid var(--border);border-bottom:none;display:flex;gap:8px;justify-content:flex-end}
-    .modal .body{padding:12px;display:grid;gap:12px}
-    .compare{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-    .compare .panel{border:1px solid var(--border);border-radius:10px;overflow:hidden;position:relative;min-height:340px}
-    .compare .label{position:absolute;top:8px;left:8px;background:rgba(0,0,0,.4);padding:4px 8px;border-radius:6px;font-size:12px}
-    .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-    .kpis .kpi{border:1px solid var(--border);border-radius:10px;padding:10px}
-    .pos{color:var(--good)} .neg{color:var(--bad)}
-    .popover{position:fixed;right:12px;top:58px;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px;max-width:420px;z-index:15;display:none}
-    .popover.open{display:block}
-    .btn:focus, .seg button:focus, input:focus, a:focus {outline:2px solid var(--focus);outline-offset:2px}
-    #map, .leaflet-container { z-index: 0 !important; }
-    body.modal-open .leaflet-container,
-    body.modal-open .leaflet-control-container { pointer-events:none !important; }
-    body.modal-open .map-wrap { filter: saturate(80%) blur(1px); }
-    .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
-  </style>
-</head>
-<body>
-<div id="app" class="app">
-  <header>
-  <div class="brand">SharkScope <span class="pill">Live</span></div>
-  <div class="muted">Shark Habitat Support</div>
-    <div class="grow"></div>
-    <div class="toolbar" role="group" aria-label="Top controls">
-      <div class="seg" role="group" aria-label="View mode">
-        <button id="modeRisk" class="btn-toggle" aria-pressed="false" title="Show risk (SHSR)">Risk</button>
-        <button id="modeProb" class="btn-toggle" aria-pressed="true" title="Show shark probability (TCHI)">Probability</button>
-      </div>
-  <button id="restaurantsBtn" class="btn btn-toggle" aria-pressed="true" title="Toggle TCHI hotspots">Hotspots</button>
-      <button id="infoBtn" class="btn" aria-haspopup="dialog" aria-controls="infoPop">Info</button>
-      <button id="creditsBtn" class="btn" aria-haspopup="dialog" aria-controls="creditsPop">Credits</button>
-      <button id="exportBtn" class="btn">Export PNG</button>
-    </div>
-  </header>
+// SharkScope Application JavaScript
+// Configuration will be injected from PHP
+window.SHARKSCOPE_CONFIG = window.SHARKSCOPE_CONFIG || {};
 
-  <main>
-    <section class="map-wrap" aria-label="Map">
-      <div id="map" role="application" aria-label="Interactive map"></div>
-
-      <div class="overlay top-center">
-        <div class="row" style="justify-content:center">
-          <button id="prevDay" class="btn" title="Previous day"><span class="kbd">Alt</span> ←</button>
-          <label for="date" class="sr-only">Date</label>
-          <input id="date" type="date" />
-          <button id="nextDay" class="btn" title="Next day"><span class="kbd">Alt</span> →</button>
-          <button id="play" class="btn">Play</button>
-        </div>
-      </div>
-
-      <!-- <div class="overlay bottom-left">
-  <div class="legend" aria-label="TCHI hotspot legend">
-          <div id="legendTitle" style="font-size:12px;margin-bottom:4px">TCHI Hotspot Intensity</div>
-          <div class="muted" style="font-size:12px">Red halos show peak shark suitability within a 100 km radius.</div>
-        </div>
-      </div> -->
-
-      <div class="overlay bottom-center">
-        <div style="background:var(--panel);border:1px solid var(--border);padding:8px 10px;border-radius:10px;min-width:280px">
-          <div style="font-size:12px;margin-bottom:6px" class="muted">Available data dates</div>
-          <input id="timeSlider" type="range" min="0" max="0" step="1" style="width:100%">
-          <div class="range-hint"><span id="timeLabel">Loading…</span></div>
-        </div>
-      </div>
-    </section>
-
-    <aside class="sidebar" role="complementary" aria-labelledby="sideTitle">
-      <div class="row" style="justify-content:space-between;align-items:center">
-        <div id="sideTitle" class="title">Analysis</div>
-        <div id="locLabel" class="muted">Click the map</div>
-      </div>
-
-      <div class="cards">
-        <div class="card">
-          <div class="title">TCHI Support Score</div>
-          <div class="big" id="tchiScore">–/100</div>
-        </div>
-        <div class="card">
-          <div class="title">SHSR Risk</div>
-          <div class="big" id="shsrScore">–%</div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="title">Factor contributions</div>
-        <div class="bars" id="factorBars"></div>
-      </div>
-
-      <div class="card">
-        <div class="title">Time-series</div>
-        <canvas id="spark" height="120"></canvas>
-      </div>
-
-      <div class="row" style="margin-top:auto;justify-content:space-between">
-        <button id="simulateBtn" class="btn btn-primary" disabled>Run Mako‑Sense Simulation</button>
-        <div id="restSummary" class="muted" style="font-size:12px"></div>
-      </div>
-    </aside>
-  </main>
-
-  <footer>
-  <div class="muted">Click ocean to analyze. Halo intensity = TCHI suitability. SHSR = (1 − TCHI) × 100</div>
-    <div class="row"><span class="kbd">?</span> for help</div>
-  </footer>
-</div>
-
-<!-- Info and Credits popovers -->
-<div id="infoPop" class="popover" role="dialog" aria-modal="false" aria-labelledby="infoTitle">
-  <div id="infoTitle" class="title">How to Use SharkScope</div>
-  <p class="muted" style="margin:6px 0 8px">
-    <strong>Analyze Habitat:</strong> Click anywhere on the ocean to generate a detailed analysis in the sidebar.
-    <br><strong>Change Layers:</strong> Use the toggle buttons in the header to switch between the TCHI Probability, SHSR Risk, and TCHI/SST blended heatmaps.
-    <br><strong>Explore Time:</strong> Use the date controls and the time-slider at the bottom to see how shark habitats change over time.
-  </p>
-</div>
-
-<div id="creditsPop" class="popover" role="dialog" aria-modal="false" aria-labelledby="credTitle">
-  <div id="credTitle" class="title">Data Sources & Licensing</div>
-  <p class="muted" style="margin:6px 0 8px">
-    <strong>NASA Data (Public Domain):</strong> SST from PODAAC, Chl-a from OceanData, Base Map from GIBS.
-    <br><strong>Partner Data:</strong> EKE from Copernicus Marine Service (CMEMS), Base Map Fallback from OpenStreetMap (ODbL).
-    <br><strong>Process:</strong> All layers are processed daily by the SharkScope TCHI model. This project was created for the NASA Space Apps Challenge and all code is open-source (MIT License).
-  </p>
-  <div style="margin-top:12px;padding:8px;background:rgba(241,196,15,0.1);border:1px solid rgba(241,196,15,0.3);border-radius:6px">
-    <div style="font-size:12px;font-weight:600;color:#F1C40F;margin-bottom:4px">⚠️ Demo Dataset Notice</div>
-    <p class="muted" style="font-size:11px;margin:0">
-      Due to data size constraints, this demo currently displays <strong>September 5, 2025</strong> only. 
-      The complete processing pipeline, data acquisition scripts, and setup guidelines are included in the source code. 
-      <a href="https://github.com/bionauts/sharkscope" target="_blank" style="color:#3BA3FF">Check the repository</a> to process additional dates.
-    </p>
-  </div>
-</div>
-
-<!-- Simulation Modal -->
-<div id="simBackdrop" class="backdrop" aria-hidden="true">
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="simTitle">
-    <header><div id="simTitle" class="title">Mako‑Sense Simulation</div></header>
-    <div class="body">
-      <div class="kpis">
-        <div class="kpi"><div class="muted">Previous TCHI</div><div class="big" id="prevTchi">–</div></div>
-        <div class="kpi"><div class="muted">Refined TCHI</div><div class="big" id="refinedTchi">–</div></div>
-        <div class="kpi"><div class="muted">Δ TCHI / Δ SHSR</div><div class="big" id="deltaTchi">–</div></div>
-      </div>
-      <div class="compare">
-        <div class="panel"><div class="label">Before</div><div id="mapBefore" style="position:absolute;inset:0"></div></div>
-        <div class="panel"><div class="label">After</div><div id="mapAfter" style="position:absolute;inset:0"></div></div>
-      </div>
-      <div class="muted">Visualization: Localized prey confirmation increases suitability within ~5 km (green circle).</div>
-    </div>
-    <footer>
-      <button id="rerunSim" class="btn">Re‑run</button>
-      <button id="closeSim" class="btn btn-primary">Close</button>
-    </footer>
-  </div>
-</div>
-
-<script>
 // Quiet canvas warning; prefer willReadFrequently for 2D contexts
 (function(){
   const orig = HTMLCanvasElement.prototype.getContext;
@@ -257,14 +28,15 @@
 
   // ------------------ State & Date Handling ------------------
   const url = new URL(location.href);
-  const SITE_BASE_URL = new URL('.', window.location.href);
-  const API_BASE_URL = new URL('api/', SITE_BASE_URL).toString();
-  const TILE_BASE_URL = apiPath('tiles.php');
+  const BASE_URL = window.SHARKSCOPE_CONFIG.baseUrl || '';
+  const API_BASE_URL = BASE_URL + '/src/api/';
 
   function apiPath(endpoint){
     const clean = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
     return `${API_BASE_URL}${clean}`;
   }
+  
+  const TILE_BASE_URL = apiPath('tiles.php');
   const state = {
     availableDates: [],
     dateIndex: 0,
@@ -565,7 +337,7 @@
     if (summary) summary.textContent = 'Loading hotspots…';
 
     try {
-      const url = new URL(apiPath('get_hotspots.php'));
+      const url = new URL(apiPath('get_hotspots.php'), window.location.origin);
       url.searchParams.set('date', state.date);
       url.searchParams.set('count', 10);
       const response = await fetch(url);
@@ -689,7 +461,7 @@
     shsrEl.textContent = 'Loading…';
 
     try {
-  const pointUrl = new URL(apiPath('point_analysis.php'));
+  const pointUrl = new URL(apiPath('point_analysis.php'), window.location.origin);
   pointUrl.searchParams.set('lat', lat);
   pointUrl.searchParams.set('lon', lon);
   const response = await fetch(pointUrl);
@@ -912,6 +684,3 @@ function initSimMaps(lat, lon) {
 
   window.addEventListener('load', boot);
 })();
-</script>
-</body>
-</html>
