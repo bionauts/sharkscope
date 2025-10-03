@@ -7,7 +7,8 @@ import numpy as np
 import rasterio
 from scipy.ndimage import maximum_filter
 
-def find_hotspots(raster_path, top_n=5):
+
+def find_hotspots(raster_path, top_n=10):
     try:
         with rasterio.open(raster_path) as src:
             data = src.read(1)
@@ -35,9 +36,9 @@ def find_hotspots(raster_path, top_n=5):
             n_to_find = min(top_n, num_peaks)
             if n_to_find == 0:
                 return []
-                
+
             top_indices = np.argpartition(peak_values, -n_to_find)[-n_to_find:]
-            
+
             # Get the coordinates and values for the top peaks
             hotspots = []
             for i in top_indices:
@@ -50,18 +51,27 @@ def find_hotspots(raster_path, top_n=5):
                     'tchi_score': float(peak_values[i])
                 })
 
-            # Sort the final list from highest to lowest score
+            # Sort the final list from highest to lowest score and tag rank
             hotspots.sort(key=lambda x: x['tchi_score'], reverse=True)
+            for idx, hotspot in enumerate(hotspots, start=1):
+                hotspot['rank'] = idx
             return hotspots
 
     except Exception:
         return []
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print(json.dumps({"error": "Usage: python find_hotspots.py <raster_path>"}), file=sys.stderr)
+    if len(sys.argv) < 2:
+        print(json.dumps({"error": "Usage: python find_hotspots.py <raster_path> [top_n]"}), file=sys.stderr)
         sys.exit(1)
-    
+
     raster_file = sys.argv[1]
-    results = find_hotspots(raster_file)
+    top_n = 10
+    if len(sys.argv) >= 3:
+        try:
+            top_n = max(1, int(sys.argv[2]))
+        except ValueError:
+            top_n = 10
+
+    results = find_hotspots(raster_file, top_n=top_n)
     print(json.dumps(results, indent=4))

@@ -69,7 +69,7 @@
     .cross:after{top:50%;left:2px;right:2px;height:2px;transform:translateY(-50%)}
     .fin{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:rgba(155,108,255,.18);border:1px solid var(--violet);box-shadow:0 0 0 2px rgba(0,0,0,.25)}
     .fin span{font-size:16px}
-    .fin-label{background:rgba(0,0,0,.45);color:#fff;padding:2px 6px;border-radius:6px;font-size:11px;margin-top:2px;white-space:nowrap}
+    .fin-label{background:rgba(0,0,0,.45);color:#fff;padding:2px 6px;border-radius:6px;font-size:11px;margin-top:2px;white-space:nowrap; min-width: fit-content;}
     .backdrop{position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; z-index:4000}
     .backdrop.open{display:flex}
     .modal{background:var(--panel); border:1px solid var(--border); border-radius:12px; max-width:1100px; width:min(96vw,1100px); max-height:90vh; display:flex; flex-direction:column; z-index:5000}
@@ -103,7 +103,7 @@
         <button id="modeRisk" class="btn-toggle" aria-pressed="false" title="Show risk (SHSR)">Risk</button>
         <button id="modeProb" class="btn-toggle" aria-pressed="true" title="Show shark probability (TCHI)">Probability</button>
       </div>
-      <button id="restaurantsBtn" class="btn btn-toggle" aria-pressed="true" title="Toggle Shark Restaurants">Restaurants</button>
+  <button id="restaurantsBtn" class="btn btn-toggle" aria-pressed="true" title="Toggle TCHI hotspots">Hotspots</button>
       <button id="infoBtn" class="btn" aria-haspopup="dialog" aria-controls="infoPop">Info</button>
       <button id="creditsBtn" class="btn" aria-haspopup="dialog" aria-controls="creditsPop">Credits</button>
       <button id="exportBtn" class="btn">Export PNG</button>
@@ -125,9 +125,9 @@
       </div>
 
       <div class="overlay bottom-left">
-        <div class="legend" aria-label="TCHI heatmap legend">
-          <div id="legendTitle" style="font-size:12px;margin-bottom:4px">TCHI Heatmap</div>
-          <div class="muted" style="font-size:12px">Tiles colored from blue (low) to red (high) suitability.</div>
+  <div class="legend" aria-label="TCHI hotspot legend">
+          <div id="legendTitle" style="font-size:12px;margin-bottom:4px">TCHI Hotspot Intensity</div>
+          <div class="muted" style="font-size:12px">Red halos show peak shark suitability within a 100 km radius.</div>
         </div>
       </div>
 
@@ -175,7 +175,7 @@
   </main>
 
   <footer>
-  <div class="muted">Click ocean to analyze. Heatmap colors = TCHI suitability. SHSR = (1 − TCHI) × 100</div>
+  <div class="muted">Click ocean to analyze. Halo intensity = TCHI suitability. SHSR = (1 − TCHI) × 100</div>
     <div class="row"><span class="kbd">?</span> for help</div>
   </footer>
 </div>
@@ -262,14 +262,15 @@
       : null,
     heatMode: url.searchParams.get('mode') === 'risk' ? 'risk' : 'prob',
     restaurantsOn: url.searchParams.get('rest') !== 'off',
-    playTimer: null
+    playTimer: null,
+    hotspots: [],
+    hotspotDate: null
   };
 
   function updateURL(){
     const u = new URL(location.href);
     u.searchParams.set('date', state.date);
     u.searchParams.set('mode', state.heatMode);
-    u.searchParams.set('rest', state.restaurantsOn ? 'on' : 'off');
     if (state.selected){
       u.searchParams.set('lat', state.selected[0].toFixed(4));
       u.searchParams.set('lon', state.selected[1].toFixed(4));
@@ -300,7 +301,7 @@
     state.date = state.availableDates[state.dateIndex];
   }
 
-  let map, baseLayer, markerDivIcon, restaurantsGroup, tchiLayer;
+  let map, baseLayer, markerDivIcon, hotspotMarkerGroup, hotspotHeatGroup;
   let gibsFailed = false;
 
   function initMap(){
@@ -317,12 +318,15 @@
     baseLayer.addTo(map);
 
     markerDivIcon = L.divIcon({className:'', html:'<div class="cross" role="img" aria-label="Selected location"></div>', iconSize:[18,18], iconAnchor:[9,9]});
-    restaurantsGroup = L.layerGroup().addTo(map);
+    hotspotMarkerGroup = L.layerGroup().addTo(map);
 
-    tchiLayer = L.tileLayer(tileUrl('tchi'), {
-      opacity: 0.75,
-      attribution: 'SharkScope TCHI Model | NASA Earthdata'
-    }).addTo(map);
+    map.createPane('hotspot-overlay');
+    const overlayPane = map.getPane('hotspot-overlay');
+    if (overlayPane){
+      overlayPane.style.zIndex = 420;
+      overlayPane.style.pointerEvents = 'none';
+    }
+    hotspotHeatGroup = L.layerGroup().addTo(map);
 
     map.on('click', (e)=>{
       state.selected = [e.latlng.lat, e.latlng.lng];
@@ -336,7 +340,6 @@
     syncDateInputs();
     setMode(state.heatMode);
     setRestaurantsToggle(state.restaurantsOn);
-    drawRestaurants();
 
     if (state.selected){
       setMarker();
@@ -345,7 +348,7 @@
       $('#locLabel').textContent = fmtLatLon(...state.selected);
     }
 
-    updateTileLayer();
+    refreshLegend();
   }
 
   function syncDateInputs(){
@@ -383,7 +386,7 @@
     state.dateIndex = nextIndex;
     state.date = state.availableDates[state.dateIndex];
     syncDateInputs();
-    updateTileLayer();
+    drawRestaurants(true);
     updateURL();
     analyzePoint();
   }
@@ -398,10 +401,18 @@
     }
   }
 
-  function tileUrl(layer){
-    const dateParam = encodeURIComponent(state.date);
-    const layerParam = encodeURIComponent(layer);
-    return `${TILE_BASE_URL}?date=${dateParam}&layer=${layerParam}&z={z}&x={x}&y={y}`;
+  function refreshLegend(){
+    const legendTitle = $('#legendTitle');
+    const legendBody = document.querySelector('.legend .muted');
+    if (!legendTitle || !legendBody) return;
+
+    if (state.restaurantsOn){
+      legendTitle.textContent = state.heatMode === 'risk' ? 'SHSR Hotspot Risk' : 'TCHI Hotspot Intensity';
+      legendBody.textContent = 'Red halos highlight peak suitability within approximately 100 km.';
+    } else {
+      legendTitle.textContent = 'No overlay active';
+      legendBody.textContent = 'Toggle Hotspots to visualize shark habitat models.';
+    }
   }
 
   async function loadAvailableDates(){
@@ -433,74 +444,161 @@
     selMarker = L.marker(state.selected, {icon: markerDivIcon, keyboard:false}).addTo(map);
   }
 
-  function tileLayerNameForMode(){
-    // Future-friendly switch; currently both modes use TCHI tiles
-    return 'tchi';
-  }
-
-  function updateTileLayer(){
-    if (!map || !tchiLayer) return;
-    const layerName = tileLayerNameForMode();
-    tchiLayer.setUrl(tileUrl(layerName));
-    tchiLayer.redraw();
-  }
-
   function setMode(mode){
     state.heatMode = mode==='risk' ? 'risk' : 'prob';
     $('#modeRisk').setAttribute('aria-pressed', state.heatMode==='risk' ? 'true':'false');
     $('#modeProb').setAttribute('aria-pressed', state.heatMode==='prob' ? 'true':'false');
-    $('#legendTitle').textContent = state.heatMode === 'risk' ? 'SHSR Risk (derived from TCHI)' : 'TCHI Heatmap';
-    updateTileLayer();
+    renderHotspotHeat(state.hotspots);
+    refreshLegend();
     updateURL();
   }
   $('#modeRisk').addEventListener('click', ()=> setMode('risk'));
   $('#modeProb').addEventListener('click', ()=> setMode('prob'));
 
 
-  // ------------------ Restaurants ------------------
-  let restaurantMarkers = [];
-async function drawRestaurants() {
-    if (!map || !state.restaurantsOn) {
-        restaurantsGroup.clearLayers();
-        $('#restSummary').textContent = '';
-        return;
+  // ------------------ Hotspots ------------------
+  function updateHotspotSummary(hotspots){
+    const summary = $('#restSummary');
+    if (!summary) return;
+    if (!state.restaurantsOn){
+      summary.textContent = 'Hotspots hidden';
+      return;
+    }
+    if (!Array.isArray(hotspots) || !hotspots.length){
+      summary.textContent = 'No hotspots detected';
+      return;
+    }
+    const heatCount = Math.min(10, hotspots.length);
+    const labeledCount = Math.min(5, hotspots.length);
+    summary.textContent = `Highlighting top ${heatCount} hotspots (${labeledCount} labeled)`;
+  }
+
+  function renderHotspotMarkers(hotspots){
+    if (!hotspotMarkerGroup) return;
+    hotspotMarkerGroup.clearLayers();
+    if (!state.restaurantsOn || !Array.isArray(hotspots) || !hotspots.length) return;
+
+    const markerCount = Math.min(5, hotspots.length);
+    for (let i = 0; i < markerCount; i += 1){
+      const spot = hotspots[i];
+      if (!spot) continue;
+      const rank = spot.rank || (i + 1);
+      const name = spot.name || `Hotspot #${rank}`;
+      const icon = L.divIcon({
+        className: '',
+        iconSize: [28, 32],
+        iconAnchor: [14, 14],
+        html: `<div class="fin"><span>🔥</span></div><div class="fin-label">${name}</div>`
+      });
+      L.marker([spot.lat, spot.lon], { icon, keyboard: false, interactive: false }).addTo(hotspotMarkerGroup);
+    }
+  }
+
+  function renderHotspotHeat(hotspots){
+    if (!hotspotHeatGroup) return;
+    hotspotHeatGroup.clearLayers();
+    if (!state.restaurantsOn || !Array.isArray(hotspots) || !hotspots.length) return;
+
+    const usable = hotspots.slice(0, 10);
+    const scores = usable
+      .map(h => Number(h.tchi_score))
+      .filter(v => Number.isFinite(v));
+
+    const maxScore = scores.length ? Math.max(...scores) : 1;
+    const minScore = scores.length ? Math.min(...scores) : 0;
+    const span = Math.max(maxScore - minScore, 1e-6);
+
+    usable.forEach((spot)=>{
+      if (!spot) return;
+      const score = Number(spot.tchi_score);
+      const normalized = Number.isFinite(score) ? (score - minScore) / span : 0.5;
+      const intensity = 0.45 + normalized * 0.55;
+      const circleStops = [
+        { radius: 24000, color: '#ff2d55', opacity: 0.55 },
+        { radius: 50000, color: '#ff4f45', opacity: 0.33 },
+        { radius: 80000, color: '#ff6f3d', opacity: 0.22 },
+        { radius: 100000, color: '#ff8f3a', opacity: 0.14 }
+      ];
+
+      circleStops.forEach((stop)=>{
+        const circle = L.circle([spot.lat, spot.lon], {
+          radius: stop.radius,
+          stroke: false,
+          fillColor: stop.color,
+          fillOpacity: stop.opacity * intensity,
+          pane: 'hotspot-overlay',
+          interactive: false,
+          bubblingMouseEvents: false
+        });
+        hotspotHeatGroup.addLayer(circle);
+      });
+    });
+  }
+
+  async function drawRestaurants(force = false){
+    if (!map) return;
+
+    if (!state.restaurantsOn){
+      if (hotspotMarkerGroup) hotspotMarkerGroup.clearLayers();
+      if (hotspotHeatGroup) hotspotHeatGroup.clearLayers();
+      updateHotspotSummary([]);
+      return;
     }
 
     if (!state.date) return;
 
-    try {
-        const url = new URL(apiPath('get_hotspots.php'));
-        url.searchParams.set('date', state.date);
-        const response = await fetch(url);
-        const hotspots = await response.json();
-
-        restaurantsGroup.clearLayers();
-        if (hotspots && hotspots.length > 0) {
-            hotspots.forEach((spot, index) => {
-                const name = `Hotspot #${index + 1}`;
-                const icon = L.divIcon({
-                    className: '',
-                    iconSize: [28, 32],
-                    iconAnchor: [14, 14],
-                    html: `<div class="fin"><span>🔥</span></div><div class="fin-label">${name}</div>`
-                });
-                const marker = L.marker([spot.lat, spot.lon], { icon, keyboard: false });
-                marker.addTo(restaurantsGroup);
-            });
-            $('#restSummary').textContent = `Top ${hotspots.length} Restaurants`;
-        } else {
-            $('#restSummary').textContent = 'No hotspots found';
-        }
-
-    } catch (error) {
-        console.error("Failed to fetch hotspots:", error);
-        $('#restSummary').textContent = 'Error loading hotspots';
+    if (!force && state.hotspotDate === state.date && Array.isArray(state.hotspots) && state.hotspots.length){
+      renderHotspotMarkers(state.hotspots);
+      renderHotspotHeat(state.hotspots);
+      updateHotspotSummary(state.hotspots);
+      refreshLegend();
+      return;
     }
-}
+
+    const summary = $('#restSummary');
+    if (summary) summary.textContent = 'Loading hotspots…';
+
+    try {
+      const url = new URL(apiPath('get_hotspots.php'));
+      url.searchParams.set('date', state.date);
+      url.searchParams.set('count', 10);
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`Request failed (${response.status})`);
+      const hotspots = await response.json();
+      if (!Array.isArray(hotspots)) throw new Error('Invalid hotspot payload');
+
+      state.hotspotDate = state.date;
+      state.hotspots = hotspots;
+
+      renderHotspotMarkers(hotspots);
+      renderHotspotHeat(hotspots);
+      updateHotspotSummary(hotspots);
+      refreshLegend();
+    } catch (error){
+      console.error('Failed to fetch hotspots:', error);
+      if (hotspotMarkerGroup) hotspotMarkerGroup.clearLayers();
+      if (hotspotHeatGroup) hotspotHeatGroup.clearLayers();
+      state.hotspots = [];
+      state.hotspotDate = null;
+      const summaryEl = $('#restSummary');
+      if (summaryEl) summaryEl.textContent = 'Error loading hotspots';
+    }
+  }
+
   function setRestaurantsToggle(on){
     state.restaurantsOn = !!on;
     $('#restaurantsBtn').setAttribute('aria-pressed', state.restaurantsOn ? 'true' : 'false');
-    drawRestaurants();
+    if (state.restaurantsOn){
+      drawRestaurants(true);
+    } else {
+      if (hotspotMarkerGroup) hotspotMarkerGroup.clearLayers();
+      if (hotspotHeatGroup) hotspotHeatGroup.clearLayers();
+      state.hotspots = [];
+      state.hotspotDate = null;
+      const summaryEl = $('#restSummary');
+      if (summaryEl) summaryEl.textContent = 'Hotspots hidden';
+    }
+    refreshLegend();
     updateURL();
   }
   $('#restaurantsBtn').addEventListener('click', ()=> setRestaurantsToggle(!state.restaurantsOn));
@@ -654,7 +752,7 @@ async function drawRestaurants() {
   $('#exportBtn').addEventListener('click', async ()=>{
     const node = document.getElementById('app');
     const canvas = await html2canvas(node, {backgroundColor: null, scale: 2, useCORS: true});
-  const link = document.createElement('a'); link.download = `sharkscope_${state.date}_${state.heatMode}_heatmap.png`;
+  const link = document.createElement('a'); link.download = `sharkscope_${state.date}_${state.heatMode}_hotspots.png`;
     link.href = canvas.toDataURL('image/png'); link.click();
   });
 
