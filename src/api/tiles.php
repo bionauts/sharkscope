@@ -142,9 +142,24 @@ $tempColored = $tempDir . "/colored_tile_${z}_${x}_${y}.tif";
 $outputPng = $tempDir . "/output_tile_${z}_${x}_${y}.png";
 
 try {
+    // Prepare environment prefix for GDAL from config (conda env)
+    $envParts = [];
+    if (!empty($config['gdal']['data'])) { $envParts[] = 'GDAL_DATA=' . escapeshellarg($config['gdal']['data']); }
+    if (!empty($config['gdal']['proj'])) { $envParts[] = 'PROJ_LIB=' . escapeshellarg($config['gdal']['proj']); }
+    // Prepend bin_dir to PATH if provided
+    if (!empty($config['gdal']['bin_dir'])) {
+        $envParts[] = 'PATH=' . escapeshellarg($config['gdal']['bin_dir'] . PATH_SEPARATOR . getenv('PATH'));
+    }
+    $envPrefix = $envParts ? (implode(' ', $envParts) . ' ') : '';
+
+    $gdalTranslate = $config['gdal']['translate_cmd'] ?? 'gdal_translate';
+    $gdaldem = $config['gdal']['dem_cmd'] ?? 'gdaldem';
+
     // Step 1: Extract the tile area using gdal_translate
     $gdalCommand = sprintf(
-        'gdal_translate -of GTiff -projwin %f %f %f %f "%s" "%s" 2>&1',
+        '%s%s -of GTiff -projwin %f %f %f %f "%s" "%s" 2>&1',
+        $envPrefix,
+        escapeshellcmd($gdalTranslate),
         $bounds['minLon'],
         $bounds['maxLat'],
         $bounds['maxLon'],
@@ -169,7 +184,9 @@ try {
     
     // Step 3: Apply color relief using gdaldem
     $gdaldemCommand = sprintf(
-        'gdaldem color-relief "%s" "%s" "%s" -of GTiff 2>&1',
+        '%s%s color-relief "%s" "%s" "%s" -of GTiff 2>&1',
+        $envPrefix,
+        escapeshellcmd($gdaldem),
         $tempTile,
         $colorFile,
         $tempColored
@@ -185,7 +202,9 @@ try {
     
     // Step 4: Convert to PNG and resize to exactly 256x256
     $gdalTranslateCommand = sprintf(
-        'gdal_translate -of PNG -outsize 256 256 "%s" "%s" 2>&1',
+        '%s%s -of PNG -outsize 256 256 "%s" "%s" 2>&1',
+        $envPrefix,
+        escapeshellcmd($gdalTranslate),
         $tempColored,
         $outputPng
     );

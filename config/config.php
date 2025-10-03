@@ -30,8 +30,14 @@ return [
         'eke' => 'https://my.cmems-du.eu/...' // EKE URL placeholder
     ],
     'gdal' => [
-        'warp_cmd' => 'gdalwarp',
-        'dem_cmd' => 'gdaldem',
+        // CLI command paths (can be absolute paths from your Miniconda env)
+        'translate_cmd' => $_ENV['GDAL_TRANSLATE'] ?? 'gdal_translate',
+        'dem_cmd' => $_ENV['GDAL_DEM'] ?? 'gdaldem',
+        'warp_cmd' => $_ENV['GDAL_WARP'] ?? 'gdalwarp',
+        // Optional environment variables for GDAL/PROJ when using conda
+        'data' => $_ENV['GDAL_DATA'] ?? '',
+        'proj' => $_ENV['PROJ_LIB'] ?? '',
+        'bin_dir' => $_ENV['CONDA_BIN'] ?? '' // prepend to PATH if set
     ],
     'gemini' => [
         'api_key' => $_ENV['GEMINI_API_KEY'] ?? '',
