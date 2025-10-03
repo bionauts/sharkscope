@@ -268,12 +268,12 @@
   const state = {
     availableDates: [],
     dateIndex: 0,
-    date: todayISO,
+    date: url.searchParams.get('date') || '2025-09-05',
     selected: url.searchParams.has('lat') && url.searchParams.has('lon')
       ? [parseFloat(url.searchParams.get('lat')), parseFloat(url.searchParams.get('lon'))]
-      : null,
-    heatMode: url.searchParams.get('mode') === 'risk' ? 'risk' : 'prob',
-    restaurantsOn: url.searchParams.get('rest') !== 'off',
+      : [68.6131, 16.4671],
+    heatMode: url.searchParams.get('mode') || 'prob',
+    restaurantsOn: url.searchParams.get('rest') === 'off' ? false : true,
     playTimer: null,
     hotspots: [],
     hotspotDate: null
@@ -283,6 +283,7 @@
     const u = new URL(location.href);
     u.searchParams.set('date', state.date);
     u.searchParams.set('mode', state.heatMode);
+    u.searchParams.set('rest', state.restaurantsOn ? 'on' : 'off');
     if (state.selected){
       u.searchParams.set('lat', state.selected[0].toFixed(4));
       u.searchParams.set('lon', state.selected[1].toFixed(4));
