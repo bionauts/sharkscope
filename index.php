@@ -124,12 +124,12 @@
         </div>
       </div>
 
-      <div class="overlay bottom-left">
+      <!-- <div class="overlay bottom-left">
   <div class="legend" aria-label="TCHI hotspot legend">
           <div id="legendTitle" style="font-size:12px;margin-bottom:4px">TCHI Hotspot Intensity</div>
           <div class="muted" style="font-size:12px">Red halos show peak shark suitability within a 100 km radius.</div>
         </div>
-      </div>
+      </div> -->
 
       <div class="overlay bottom-center">
         <div style="background:var(--panel);border:1px solid var(--border);padding:8px 10px;border-radius:10px;min-width:280px">
@@ -182,16 +182,20 @@
 
 <!-- Info and Credits popovers -->
 <div id="infoPop" class="popover" role="dialog" aria-modal="false" aria-labelledby="infoTitle">
-  <div id="infoTitle" class="title">What am I seeing?</div>
+  <div id="infoTitle" class="title">How to Use SharkScope</div>
   <p class="muted" style="margin:6px 0 8px">
-    This dashboard streams processed SharkScope tiles (TCHI, SST, Chl‑a) and live point analysis straight from the backend. Use the date slider to browse archives and click anywhere in the ocean to inspect current factors and scores.
+    <strong>Analyze Habitat:</strong> Click anywhere on the ocean to generate a detailed analysis in the sidebar.
+    <br><strong>Change Layers:</strong> Use the toggle buttons in the header to switch between the TCHI Probability, SHSR Risk, and TCHI/SST blended heatmaps.
+    <br><strong>Explore Time:</strong> Use the date controls and the time-slider at the bottom to see how shark habitats change over time.
   </p>
 </div>
 
 <div id="creditsPop" class="popover" role="dialog" aria-modal="false" aria-labelledby="credTitle">
-  <div id="credTitle" class="title">Credits & Data</div>
+  <div id="credTitle" class="title">Data Sources & Licensing</div>
   <p class="muted" style="margin:6px 0 8px">
-    Base map: NASA GIBS (MODIS Terra True Color) with graceful fallback to OSM. Model layers: SharkScope processed rasters derived from NASA Earthdata inputs, served via our PHP backend APIs.
+    <strong>NASA Data (Public Domain):</strong> SST from PODAAC, Chl-a from OceanData, Base Map from GIBS.
+    <br><strong>Partner Data:</strong> EKE from Copernicus Marine Service (CMEMS), Base Map Fallback from OpenStreetMap (ODbL).
+    <br><strong>Process:</strong> All layers are processed daily by the SharkScope TCHI model. This project was created for the NASA Space Apps Challenge and all code is open-source (MIT License).
   </p>
 </div>
 
@@ -306,16 +310,9 @@
 
   function initMap(){
     map = L.map('map', {worldCopyJump:true, preferCanvas:true, minZoom:2}).setView([23.7,90.4], 3);
+    L.control.scale({ imperial: false }).addTo(map); 
 
-    const gibsUrl = 'https://gibs.earthdata.nasa.gov/wmts/epsg4326/best/wmts.cgi';
-    baseLayer = L.tileLayer.wms(gibsUrl, { layers: 'MODIS_Terra_CorrectedReflectance_TrueColor', tileSize: 512, format: 'image/png', transparent: false, attribution: 'NASA GIBS' });
-    baseLayer.on('tileerror', ()=>{
-      if (gibsFailed) return; gibsFailed = true;
-      try{ if (map && baseLayer && map.hasLayer(baseLayer)) map.removeLayer(baseLayer); }catch(_){ }
-      const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OSM contributors'});
-      if (map) { osm.addTo(map); baseLayer = osm; }
-    });
-    baseLayer.addTo(map);
+    baseLayer = createBaseLayer().addTo(map);
 
     markerDivIcon = L.divIcon({className:'', html:'<div class="cross" role="img" aria-label="Selected location"></div>', iconSize:[18,18], iconAnchor:[9,9]});
     hotspotMarkerGroup = L.layerGroup().addTo(map);
@@ -777,7 +774,7 @@
     deltaEl.innerHTML = '<span class="muted">Fetching simulation…</span>';
 
     try {
-      const response = await fetch('/api/simulate.php', {
+      const response = await fetch(apiPath('simulate.php'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ lat, lon, prey_code: 'SEAL_01' })
@@ -810,23 +807,71 @@
       deltaEl.innerHTML = '<span class="neg">Simulation unavailable</span>';
     }
   }
-  function initSimMaps(lat, lon){
-    if (sim.maps.before){ sim.maps.before.remove(); sim.maps.after.remove(); sim.circle=null; }
-    const opts = {worldCopyJump:true, preferCanvas:true, zoom:8, center:[lat,lon], attributionControl:false};
+
+function createBaseLayer() {
     const gibsUrl = 'https://gibs.earthdata.nasa.gov/wmts/epsg4326/best/wmts.cgi';
-    const makeBase = () => L.tileLayer.wms(gibsUrl, {layers:'MODIS_Terra_CorrectedReflectance_TrueColor', tileSize:512, format:'image/png'});
+    const layer = L.tileLayer.wms(gibsUrl, {
+        layers: 'MODIS_Terra_CorrectedReflectance_TrueColor',
+        tileSize: 512,
+        format: 'image/png',
+        transparent: false,
+        attribution: 'NASA GIBS'
+    });
 
-    sim.maps.before = L.map('mapBefore', opts);
-    const bL = makeBase().addTo(sim.maps.before);
+    layer.on('tileerror', () => {
+        // Fallback to OpenStreetMap if GIBS fails
+        const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OSM contributors'
+        });
+        if (layer._map) {
+            const map = layer._map;
+            map.removeLayer(layer);
+            osm.addTo(map);
+        }
+    });
+    return layer;
+}
 
-    sim.maps.after = L.map('mapAfter', opts);
-    const aL = makeBase().addTo(sim.maps.after);
+function initSimMaps(lat, lon) {
+    // Clear any previous map instances
+    if (sim.maps.before) { sim.maps.before.remove(); }
+    if (sim.maps.after) { sim.maps.after.remove(); }
+    
+    // Ensure containers are clean
+    document.getElementById('mapBefore').innerHTML = '';
+    document.getElementById('mapAfter').innerHTML = '';
 
-    sim.circle = L.circle([lat,lon], {radius:5000, color:'#2ECC71', weight:2, fillColor:'#2ECC71', fillOpacity:.25}).addTo(sim.maps.after);
+    const mapOptions = {
+        zoom: 8,
+        center: [lat, lon],
+        attributionControl: false,
+        zoomControl: false,
+        scrollWheelZoom: false,
+        dragging: false,
+    };
 
-    setTimeout(()=>{ sim.maps.before.invalidateSize(); sim.maps.after.invalidateSize(); }, 60);
-    [bL, aL].forEach(layer=> layer.on('tileerror', ()=>{ const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'); try{ layer.remove(); }catch(_){} osm.addTo(layer._map); }));
-  }
+    // Initialize both maps using our robust helper function
+    sim.maps.before = L.map('mapBefore', mapOptions);
+    createBaseLayer().addTo(sim.maps.before);
+    
+    sim.maps.after = L.map('mapAfter', mapOptions);
+    createBaseLayer().addTo(sim.maps.after);
+
+    // Add the simulation visualization circle
+    L.circle([lat, lon], {
+        radius: 5000,
+        color: '#2ECC71',
+        weight: 2,
+        fillColor: '#2ECC71',
+        fillOpacity: 0.25
+    }).addTo(sim.maps.after);
+
+    // Refresh map sizes after modal is visible
+    setTimeout(() => {
+        if (sim.maps.before) sim.maps.before.invalidateSize();
+        if (sim.maps.after) sim.maps.after.invalidateSize();
+    }, 100);
+}
   $('#simulateBtn').addEventListener('click', openSim);
   $('#closeSim').addEventListener('click', ()=>{ $('#simBackdrop').classList.remove('open'); document.body.style.overflow=''; document.body.classList.remove('modal-open'); sim.open=false; });
   $('#rerunSim').addEventListener('click', openSim);
