@@ -11,7 +11,12 @@ if (!$python) {
     exit;
 }
 
-$cmd = escapeshellarg($python) . ' -c ' . escapeshellarg('import sys; print(sys.version)');
+$home = null;
+if (preg_match('#^/home/([^/]+)/#', $python, $m)) {
+    $home = "/home/{$m[1]}";
+}
+$envPrefix = $home ? ('HOME=' . escapeshellarg($home) . ' ') : '';
+$cmd = $envPrefix . (escapeshellarg($python) . ' -c ' . escapeshellarg('import sys; print(sys.version)'));
 $output = shell_exec($cmd . ' 2>&1');
 
 if ($output === null || $output === '') {

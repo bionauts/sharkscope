@@ -34,6 +34,12 @@ if (!file_exists($tchiPath)) {
 // --- Configuration for Python Interop ---
 $pythonPath = escapeshellarg($config['paths']['python_executable']);
 $hotspotScriptPath = escapeshellarg($config['paths']['src_dir'] . DIRECTORY_SEPARATOR . 'python' . DIRECTORY_SEPARATOR . 'find_hotspots.py');
+// Derive HOME from interpreter path for cPanel Python App wrappers
+$home = null;
+if (isset($config['paths']['python_executable']) && preg_match('#^/home/([^/]+)/#', $config['paths']['python_executable'], $m)) {
+    $home = "/home/{$m[1]}";
+}
+$envPrefix = $home ? ('HOME=' . escapeshellarg($home) . ' ') : '';
 
 $command = sprintf(
     '%s %s %s %d',
@@ -43,7 +49,7 @@ $command = sprintf(
     $count
 );
 
-$output = shell_exec($command . ' 2>&1');
+$output = shell_exec($envPrefix . $command . ' 2>&1');
 
 if ($output === null) {
     http_response_code(500);

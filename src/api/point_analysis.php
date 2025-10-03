@@ -26,6 +26,12 @@ header('Access-Control-Allow-Origin: *'); // Allow CORS for web applications
 // Use configured Python interpreter and escape paths for shell safety
 $pythonPath = escapeshellarg($config['paths']['python_executable']);
 $queryScriptPath = escapeshellarg($config['paths']['src_dir'] . DIRECTORY_SEPARATOR . 'python' . DIRECTORY_SEPARATOR . 'query_raster.py');
+// Derive HOME from interpreter path (/home/<user>/...) for cPanel Python App wrappers
+$home = null;
+if (isset($config['paths']['python_executable']) && preg_match('#^/home/([^/]+)/#', $config['paths']['python_executable'], $m)) {
+    $home = "/home/{$m[1]}";
+}
+$envPrefix = $home ? ('HOME=' . escapeshellarg($home) . ' ') : '';
 
 // Function to log errors
 function logError($message) {
@@ -81,7 +87,7 @@ function getPixelValue($rasterFile, $lat, $lon) {
     }
 
     // Construct the command to call our robust Python query script
-    $command = sprintf(
+    $command = $envPrefix . sprintf(
         '%s %s %s %s %s',
         $pythonPath,
         $queryScriptPath,
