@@ -7,11 +7,12 @@
  * 
  * Parameters:
  * - date: Date in YYYY-MM-DD format (e.g., 2025-09-05)
+ * - layer: Data layer type (tchi, sst, chla) - defaults to tchi
  * - z: Zoom level (0-18)
  * - x: Tile X coordinate
  * - y: Tile Y coordinate
  * 
- * Example: /api/tiles.php?date=2025-09-05&z=8&x=45&y=98
+ * Example: /api/tiles.php?date=2025-09-05&layer=sst&z=8&x=45&y=98
  */
 
 // Set error reporting
@@ -65,23 +66,22 @@ function tileToLatLon($x, $y, $z) {
 }
 
 // Function to create color relief file
-function createColorReliefFile($tempDir) {
+function createColorReliefFile($tempDir, $colorMapFile) {
     $colorFile = $tempDir . '/color_relief.txt';
     
-    // Define color palette from deep blue to red
-    $colorMap = [
-        "0.0 10 25 47",      // Deep blue (#0A192F)
-        "0.2 20 50 94",      // Medium blue
-        "0.4 46 204 113",    // Green (#2ECC71)
-        "0.6 241 196 15",    // Yellow (#F1C40F)
-        "0.8 231 76 60",     // Red (#E74C3C)
-        "1.0 231 76 60"      // Red (#E74C3C)
-    ];
+    // Define the path to our color map files
+    $basePath = dirname(__DIR__); // Go up one level from api directory
+    $colorMapPath = dirname(__FILE__) . '/' . $colorMapFile;
     
-    $content = implode("\n", $colorMap) . "\n";
+    // Check if the color map file exists
+    if (!file_exists($colorMapPath)) {
+        logError("Color map file not found: $colorMapPath");
+        return false;
+    }
     
-    if (file_put_contents($colorFile, $content) === false) {
-        logError("Failed to create color relief file");
+    // Copy the color map file to temp directory
+    if (!copy($colorMapPath, $colorFile)) {
+        logError("Failed to copy color map file to temp directory");
         return false;
     }
     
@@ -90,6 +90,7 @@ function createColorReliefFile($tempDir) {
 
 // Get and validate parameters
 $date = $_GET['date'] ?? '';
+$layer = $_GET['layer'] ?? 'tchi'; // Default to tchi if not specified
 $z = isset($_GET['z']) ? intval($_GET['z']) : -1;
 $x = isset($_GET['x']) ? intval($_GET['x']) : -1;
 $y = isset($_GET['y']) ? intval($_GET['y']) : -1;
@@ -98,6 +99,23 @@ $y = isset($_GET['y']) ? intval($_GET['y']) : -1;
 if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
     logError("Invalid date format: $date");
     returnBlankTile();
+}
+
+// Set source file and color map based on layer type
+switch ($layer) {
+    case 'sst':
+        $sourceFileName = 'sst_proc.tif';
+        $colorMapFile = 'color_sst.txt';
+        break;
+    case 'chla':
+        $sourceFileName = 'chla_proc.tif';
+        $colorMapFile = 'color_chla.txt';
+        break;
+    case 'tchi':
+    default:
+        $sourceFileName = 'tchi.tif';
+        $colorMapFile = 'color_tchi.txt';
+        break;
 }
 
 // Validate zoom level (reasonable range for web maps)
@@ -116,11 +134,11 @@ if ($x < 0 || $x >= $maxTiles || $y < 0 || $y >= $maxTiles) {
 // Define paths
 $basePath = dirname(__DIR__); // Go up one level from api directory
 $dataPath = $basePath . "/data/processed/$date";
-$tchiFile = $dataPath . "/tchi.tif";
+$sourceFile = $dataPath . "/$sourceFileName";
 
-// Check if TCHI file exists
-if (!file_exists($tchiFile)) {
-    logError("TCHI file not found: $tchiFile");
+// Check if source file exists
+if (!file_exists($sourceFile)) {
+    logError("Source file not found: $sourceFile");
     returnBlankTile();
 }
 
@@ -147,7 +165,7 @@ try {
         $bounds['maxLat'],
         $bounds['maxLon'],
         $bounds['minLat'],
-        $tchiFile,
+        $sourceFile,
         $tempTile
     );
     
@@ -160,7 +178,7 @@ try {
     }
     
     // Step 2: Create color relief file
-    $colorFile = createColorReliefFile($tempDir);
+    $colorFile = createColorReliefFile($tempDir, $colorMapFile);
     if (!$colorFile) {
         returnBlankTile();
     }
