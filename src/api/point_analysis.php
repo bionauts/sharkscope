@@ -189,6 +189,22 @@ if (!is_dir($processedDataPath)) {
 }
 
 try {
+    // ---------------- CACHING (48h) -----------------
+    $cacheDir = $config['paths']['data_dir'] . '/cache/points';
+    if (!is_dir($cacheDir)) { @mkdir($cacheDir, 0755, true); }
+    // Round coordinates to 3 decimal places (~110m) to increase cache hits but preserve utility
+    $latKey = number_format($lat, 3, '.', '');
+    $lonKey = number_format($lon, 3, '.', '');
+    $cacheKey = "pt_{$latKey}_{$lonKey}.json";
+    $cachePath = $cacheDir . '/' . $cacheKey;
+    $ttl = 48 * 3600; // 48 hours
+    if (is_file($cachePath) && (time() - filemtime($cachePath) < $ttl)) {
+        $cached = @file_get_contents($cachePath);
+        if ($cached !== false) {
+            echo $cached;
+            return;
+        }
+    }
     $availableDates = getAvailableDates($config['paths']['data_dir']);
     
     if (empty($availableDates)) {
@@ -225,7 +241,9 @@ try {
         'metadata' => $metadata
     ];
     
-    echo json_encode($response, JSON_PRETTY_PRINT);
+    $jsonOut = json_encode($response, JSON_PRETTY_PRINT);
+    @file_put_contents($cachePath, $jsonOut, LOCK_EX);
+    echo $jsonOut;
     
 } catch (Exception $e) {
     logError("Exception occurred: " . $e->getMessage());

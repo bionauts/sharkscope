@@ -90,7 +90,8 @@ window.SHARKSCOPE_CONFIG = window.SHARKSCOPE_CONFIG || {};
   let gibsFailed = false;
 
   function initMap(){
-    map = L.map('map', {worldCopyJump:true, preferCanvas:true, minZoom:2}).setView([23.7,90.4], 3);
+  // Initial view fixed per requirement: 60.73°N, 73.07°W
+  map = L.map('map', {worldCopyJump:true, preferCanvas:true, minZoom:2}).setView([60.73,-73.07], 3);
     L.control.scale({ imperial: false }).addTo(map); 
 
     baseLayer = createBaseLayer().addTo(map);

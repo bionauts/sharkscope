@@ -31,6 +31,21 @@ if (!file_exists($tchiPath)) {
     exit;
 }
 
+// --- CACHING (48h) -------------------------------------------------------
+$cacheDir = $config['paths']['data_dir'] . '/cache/hotspots';
+if (!is_dir($cacheDir)) { @mkdir($cacheDir, 0755, true); }
+$cacheKey = sprintf('hotspots_%s_%d.json', $date, $count);
+$cachePath = $cacheDir . '/' . $cacheKey;
+$ttl = 48 * 3600; // 48 hours
+
+if (is_file($cachePath) && (time() - filemtime($cachePath) < $ttl)) {
+    $cachedJson = @file_get_contents($cachePath);
+    if ($cachedJson !== false) {
+        echo $cachedJson;
+        return; // served from cache
+    }
+}
+
 // --- Configuration for Python Interop ---
 $pythonPath = escapeshellarg($config['paths']['python_executable']);
 $hotspotScriptPath = escapeshellarg($config['paths']['src_dir'] . DIRECTORY_SEPARATOR . 'python' . DIRECTORY_SEPARATOR . 'find_hotspots.py');
@@ -67,5 +82,8 @@ if (json_last_error() !== JSON_ERROR_NONE) {
 // Enrich hotspots with Gemini-generated restaurant names
 $enriched = enrichHotspotsWithNames($decoded);
 
-echo json_encode($enriched);
+$jsonOut = json_encode($enriched);
+// Store cache (best-effort)
+@file_put_contents($cachePath, $jsonOut, LOCK_EX);
+echo $jsonOut;
 ?>
