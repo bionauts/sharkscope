@@ -23,9 +23,9 @@ header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *'); // Allow CORS for web applications
 
 // --- Configuration for Python Interop ---
-// IMPORTANT: Update this path to your Python executable
-$pythonPath = $config['paths']['python_executable'];
-$queryScriptPath = '"' . $config['paths']['src_dir'] . DIRECTORY_SEPARATOR . 'python' . DIRECTORY_SEPARATOR . 'query_raster.py"';
+// Use configured Python interpreter and escape paths for shell safety
+$pythonPath = escapeshellarg($config['paths']['python_executable']);
+$queryScriptPath = escapeshellarg($config['paths']['src_dir'] . DIRECTORY_SEPARATOR . 'python' . DIRECTORY_SEPARATOR . 'query_raster.py');
 
 // Function to log errors
 function logError($message) {

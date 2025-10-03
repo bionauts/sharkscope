@@ -19,7 +19,8 @@ return [
     ],
     'paths' => [
         'project_root' => dirname(__DIR__),
-        'python_executable' => '"C:\Python313\python.exe"', // System-specific
+        // Prefer PYTHON_EXE from .env; fallback to a common unix path
+        'python_executable' => $_ENV['PYTHON_EXE'] ?? '/usr/bin/python3',
         'data_dir' => dirname(__DIR__) . '/data',
         'src_dir' => dirname(__DIR__) . '/src',
     ],

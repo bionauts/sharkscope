@@ -32,8 +32,8 @@ if (!file_exists($tchiPath)) {
 }
 
 // --- Configuration for Python Interop ---
-$pythonPath = $config['paths']['python_executable'];
-$hotspotScriptPath = '"' . $config['paths']['src_dir'] . DIRECTORY_SEPARATOR . 'python' . DIRECTORY_SEPARATOR . 'find_hotspots.py"';
+$pythonPath = escapeshellarg($config['paths']['python_executable']);
+$hotspotScriptPath = escapeshellarg($config['paths']['src_dir'] . DIRECTORY_SEPARATOR . 'python' . DIRECTORY_SEPARATOR . 'find_hotspots.py');
 
 $command = sprintf(
     '%s %s %s %d',
@@ -43,7 +43,7 @@ $command = sprintf(
     $count
 );
 
-$output = shell_exec($command);
+$output = shell_exec($command . ' 2>&1');
 
 if ($output === null) {
     http_response_code(500);
