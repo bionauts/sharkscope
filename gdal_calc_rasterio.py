@@ -32,6 +32,7 @@ def safe_eval(expression, data_dict):
         "sin": np.sin,
         "cos": np.cos,
         "tan": np.tan,
+        "where": np.where,  # Add numpy.where function
     }
     safe_env.update(data_dict)
     
