@@ -29,6 +29,17 @@ function logError($message) {
     error_log("[SharkScope Tiles] " . $message);
 }
 
+// Detect if a file is a Git LFS pointer (text file with LFS spec header)
+function isLfsPointer($path) {
+    if (!is_file($path)) return false;
+    $fp = @fopen($path, 'rb');
+    if (!$fp) return false;
+    $head = fread($fp, 200);
+    fclose($fp);
+    if ($head === false) return false;
+    return str_contains($head, 'version https://git-lfs.github.com/spec/v1');
+}
+
 // Function to return a blank tile when there's an error
 function returnBlankTile() {
     // Check if GD extension is available
@@ -123,6 +134,12 @@ $tchiFile = $dataPath . "/tchi.tif";
 // Check if TCHI file exists
 if (!file_exists($tchiFile)) {
     logError("TCHI file not found: $tchiFile");
+    returnBlankTile();
+}
+
+// Detect Git LFS pointer file and bail early with a clear log
+if (isLfsPointer($tchiFile)) {
+    logError("TCHI file appears to be a Git LFS pointer. Replace with the actual GeoTIFF (binary) at: $tchiFile");
     returnBlankTile();
 }
 

@@ -92,6 +92,17 @@ function getPixelValue($rasterFile, $lat, $lon) {
         return null;
     }
 
+    // Detect Git LFS pointer files (text placeholders) and skip
+    $fp = @fopen($rasterFile, 'rb');
+    if ($fp) {
+        $head = fread($fp, 200);
+        fclose($fp);
+        if ($head !== false && str_contains($head, 'version https://git-lfs.github.com/spec/v1')) {
+            logError("Raster appears to be a Git LFS pointer, not a GeoTIFF: $rasterFile");
+            return null;
+        }
+    }
+
     // Construct the command to call our robust Python query script
     $command = $envPrefix . sprintf(
         '%s %s %s %s %s',
