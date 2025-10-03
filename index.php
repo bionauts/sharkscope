@@ -197,6 +197,14 @@
     <br><strong>Partner Data:</strong> EKE from Copernicus Marine Service (CMEMS), Base Map Fallback from OpenStreetMap (ODbL).
     <br><strong>Process:</strong> All layers are processed daily by the SharkScope TCHI model. This project was created for the NASA Space Apps Challenge and all code is open-source (MIT License).
   </p>
+  <div style="margin-top:12px;padding:8px;background:rgba(241,196,15,0.1);border:1px solid rgba(241,196,15,0.3);border-radius:6px">
+    <div style="font-size:12px;font-weight:600;color:#F1C40F;margin-bottom:4px">⚠️ Demo Dataset Notice</div>
+    <p class="muted" style="font-size:11px;margin:0">
+      Due to data size constraints, this demo currently displays <strong>September 5, 2025</strong> only. 
+      The complete processing pipeline, data acquisition scripts, and setup guidelines are included in the source code. 
+      <a href="https://github.com/bionauts/sharkscope" target="_blank" style="color:#3BA3FF">Check the repository</a> to process additional dates.
+    </p>
+  </div>
 </div>
 
 <!-- Simulation Modal -->
