@@ -1,4 +1,5 @@
+.env
 /vendor/
 .vscode/
-*.nc
-*.tif
+/data/
+*.zip
