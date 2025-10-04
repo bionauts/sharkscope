@@ -95,7 +95,8 @@ window.SHARKSCOPE_CONFIG = window.SHARKSCOPE_CONFIG || {};
 
   function initMap(){
   // Initial view fixed per requirement: 60.73°N, 73.07°W
-  map = L.map('map', {worldCopyJump:true, preferCanvas:true, minZoom:2}).setView([60.73,-73.07], 3);
+  const worldBounds = [[-85, -180],[85, 180]]; // exclude extreme poles to avoid projection issues
+  map = L.map('map', {worldCopyJump:true, preferCanvas:true, minZoom:2, maxBounds: worldBounds, maxBoundsViscosity: 1.0}).setView([60.73,-73.07], 3);
     L.control.scale({ imperial: false }).addTo(map); 
 
     baseLayer = createBaseLayer().addTo(map);
@@ -148,7 +149,7 @@ window.SHARKSCOPE_CONFIG = window.SHARKSCOPE_CONFIG || {};
     }
     // Load CSV from hardware directory
     try {
-      const resp = await fetch('../hardware/makosense_data.csv');
+  const resp = await fetch('api_makosense_csv.php');
       if (!resp.ok) throw new Error('Failed to fetch makosense_data.csv');
       const text = await resp.text();
       const rows = parseCsv(text);
@@ -654,7 +655,9 @@ function createBaseLayer() {
         tileSize: 512,
         format: 'image/png',
         transparent: false,
-        attribution: 'NASA GIBS'
+    attribution: 'NASA GIBS',
+    noWrap: true,
+    continuousWorld: false
     });
 
     layer.on('tileerror', () => {
@@ -732,7 +735,7 @@ function initSimMaps(lat, lon) {
   async function ensureMakoRows(){
     if (cachedMakoRows) return cachedMakoRows;
     try {
-      const resp = await fetch('../hardware/makosense_data.csv');
+  const resp = await fetch('api_makosense_csv.php');
       if (!resp.ok) throw new Error('Failed to fetch data');
       cachedMakoRows = parseCsv(await resp.text());
     } catch(e){
