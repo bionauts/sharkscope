@@ -87,6 +87,8 @@ window.SHARKSCOPE_CONFIG = window.SHARKSCOPE_CONFIG || {};
   }
 
   let map, baseLayer, markerDivIcon, hotspotMarkerGroup, hotspotHeatGroup;
+  let sharkTrackGroup, sharkTrackPolyline, sharkEventMarkers = [];
+  let sharkTrackVisible = false;
   let gibsFailed = false;
 
   function initMap(){
@@ -106,6 +108,7 @@ window.SHARKSCOPE_CONFIG = window.SHARKSCOPE_CONFIG || {};
       overlayPane.style.pointerEvents = 'none';
     }
     hotspotHeatGroup = L.layerGroup().addTo(map);
+  sharkTrackGroup = L.layerGroup().addTo(map);
 
     map.on('click', (e)=>{
       state.selected = [e.latlng.lat, e.latlng.lng];
@@ -129,6 +132,58 @@ window.SHARKSCOPE_CONFIG = window.SHARKSCOPE_CONFIG || {};
 
     refreshLegend();
   }
+
+  // ------------------ Shark Track (Mako-Sense simulation) ------------------
+  async function toggleSharkTrack(){
+    sharkTrackVisible = !sharkTrackVisible;
+    const btn = $('#trackBtn');
+    btn.setAttribute('aria-pressed', sharkTrackVisible ? 'true' : 'false');
+    if (!sharkTrackVisible){
+      sharkTrackGroup.clearLayers();
+      sharkTrackPolyline = null;
+      sharkEventMarkers = [];
+      return;
+    }
+    // Load CSV from hardware directory
+    try {
+      const resp = await fetch('../hardware/makosense_data.csv');
+      if (!resp.ok) throw new Error('Failed to fetch makosense_data.csv');
+      const text = await resp.text();
+      const rows = parseCsv(text);
+      if (!rows.length) return;
+      const latlngs = rows.map(r => [parseFloat(r.latitude), parseFloat(r.longitude)]);
+      sharkTrackPolyline = L.polyline(latlngs, {color:'#3BA3FF', weight:2, opacity:0.85}).addTo(sharkTrackGroup);
+      // Fit bounds lightly padded
+      map.fitBounds(sharkTrackPolyline.getBounds().pad(0.2));
+      rows.forEach(r => {
+        if (r.prey_code && r.prey_code !== 'AMBIENT_WATER'){
+          const icon = L.divIcon({className:'', html:`<div style="width:14px;height:14px;background:#e74c3c;border:2px solid #fff;border-radius:50%;box-shadow:0 0 4px rgba(0,0,0,.4)" title="${r.prey_code}"></div>`, iconSize:[14,14], iconAnchor:[7,7]});
+          const m = L.marker([parseFloat(r.latitude), parseFloat(r.longitude)], {icon});
+          m.bindPopup(`<div style='font-size:12px'><strong>${r.prey_code}</strong><br>${r.timestamp}</div>`);
+          m.addTo(sharkTrackGroup);
+          sharkEventMarkers.push(m);
+        }
+      });
+      // Populate packet decoder events if modal has been opened later
+      cachedMakoRows = rows; // store globally for decoder
+    } catch(err){
+      console.error('Shark track failed:', err);
+    }
+  }
+
+  function parseCsv(text){
+    const lines = text.trim().split(/\r?\n/);
+    if (lines.length < 2) return [];
+    const header = lines[0].split(',').map(h=>h.trim());
+    return lines.slice(1).map(line => {
+      const cols = line.split(',');
+      const obj = {};
+      header.forEach((h,i)=> obj[h] = (cols[i]||'').trim());
+      return obj;
+    });
+  }
+
+  $('#trackBtn').addEventListener('click', toggleSharkTrack);
 
   function syncDateInputs(){
     const dateInput = $('#date');
@@ -658,6 +713,118 @@ function initSimMaps(lat, lon) {
   $('#closeSim').addEventListener('click', ()=>{ $('#simBackdrop').classList.remove('open'); document.body.style.overflow=''; document.body.classList.remove('modal-open'); sim.open=false; });
   $('#rerunSim').addEventListener('click', openSim);
   $('#simBackdrop').addEventListener('click', (e)=>{ if (e.target.id==='simBackdrop') $('#closeSim').click(); });
+
+  // ------------------ Packet Decoder Modal ------------------
+  let decoderOpen = false;
+  let cachedMakoRows = null;
+  function openDecoder(){
+    $('#packetDecoderBackdrop').classList.add('open');
+    document.body.style.overflow='hidden';
+    decoderOpen = true;
+    ensureMakoRows().then(populateDecoderEvents);
+  }
+  function closeDecoder(){
+    $('#packetDecoderBackdrop').classList.remove('open');
+    document.body.style.overflow='';
+    decoderOpen = false;
+  }
+  async function ensureMakoRows(){
+    if (cachedMakoRows) return cachedMakoRows;
+    try {
+      const resp = await fetch('../hardware/makosense_data.csv');
+      if (!resp.ok) throw new Error('Failed to fetch data');
+      cachedMakoRows = parseCsv(await resp.text());
+    } catch(e){
+      console.error(e);
+      cachedMakoRows = [];
+    }
+    return cachedMakoRows;
+  }
+  function populateDecoderEvents(rows){
+    const sel = $('#packetEventSelect');
+    sel.innerHTML = '';
+    rows.forEach((r,i)=>{
+      const opt = document.createElement('option');
+      opt.value = i;
+      opt.textContent = `${r.timestamp} | ${r.prey_code}`;
+      sel.appendChild(opt);
+    });
+  }
+  function genMockPacket(row){
+    // Build a binary buffer then hex encode
+    // Helpers
+    function toUint32LE(num){ const b = new ArrayBuffer(4); new DataView(b).setUint32(0, num>>>0, true); return new Uint8Array(b);}    
+    function toInt32LE(num){ const b = new ArrayBuffer(4); new DataView(b).setInt32(0, num|0, true); return new Uint8Array(b);}    
+    function toUint16LE(num){ const b = new ArrayBuffer(2); new DataView(b).setUint16(0, num & 0xFFFF, true); return new Uint8Array(b);}  
+    function toFloat32LE(f){ const b = new ArrayBuffer(4); new DataView(b).setFloat32(0, f, true); return new Uint8Array(b);}  
+    function asciiBytes(str, len){ const out = new Uint8Array(len); for(let i=0;i<len;i++){ out[i] = i<str.length ? str.charCodeAt(i) : 0x00; } return out; }
+    function crc16CCITT(buf){ let crc = 0xFFFF; for (let b of buf){ crc ^= (b<<8); for (let i=0;i<8;i++){ if (crc & 0x8000) crc=(crc<<1)^0x1021; else crc<<=1; crc &= 0xFFFF; } } return crc; }
+
+    const pkt = new Uint8Array(32);
+    // Timestamp
+    const ts = Date.parse(row.timestamp)/1000|0; pkt.set(toUint32LE(ts),0);
+    // Lat/Lon scaled
+    const lat = Math.round(parseFloat(row.latitude)*1e6); pkt.set(toInt32LE(lat),4);
+    const lon = Math.round(parseFloat(row.longitude)*1e6); pkt.set(toInt32LE(lon),8);
+    // Battery mV (mock ~ 3.70–3.85V)
+    const batt = Math.round(3700 + Math.random()*150); pkt.set(toUint16LE(batt),12);
+    // FW Version 1.2
+    pkt[14] = (1<<4)|2;
+    // Flags: GPS valid + maybe spectral avg
+    pkt[15] = 0b00000101;
+    // Prey Code (truncate/pad to 8)
+    const preyCode = (row.prey_code||'').replace(/[^A-Z_]/g,'').slice(0,8).padEnd(8,'_');
+    pkt.set(asciiBytes(preyCode,8),16);
+    // Confidence (mock) if prey else 0
+    const conf = row.prey_code==='AMBIENT_WATER'? 0 : 0.75 + Math.random()*0.2; pkt.set(toFloat32LE(conf),24);
+    // Spectral hash mock
+    const hash = Math.floor(Math.random()*0xFFFF); pkt.set(toUint16LE(hash),28);
+    // CRC
+    const crc = crc16CCITT(pkt.slice(0,30)); pkt.set(toUint16LE(crc),30);
+    return Array.from(pkt).map(b=> b.toString(16).padStart(2,'0')).join('');
+  }
+  function decodePacket(hex){
+    if (!/^[0-9a-fA-F]{64}$/.test(hex)) throw new Error('Hex must be 64 chars (32 bytes)');
+    const bytes = new Uint8Array(hex.match(/.{2}/g).map(h=>parseInt(h,16)));
+    const dv = new DataView(bytes.buffer);
+    function getStr(off,len){ return Array.from(bytes.slice(off,off+len)).map(c=> c?String.fromCharCode(c):'').join('').replace(/\0+$/,''); }
+    const ts = dv.getUint32(0, true);
+    const lat = dv.getInt32(4, true) / 1e6;
+    const lon = dv.getInt32(8, true) / 1e6;
+    const batt = dv.getUint16(12, true);
+    const fw = dv.getUint8(14); const fwMaj = fw>>4; const fwMin = fw & 0x0F;
+    const flags = dv.getUint8(15);
+    const prey = getStr(16,8).replace(/_+$/,'');
+    const conf = dv.getFloat32(24, true);
+    const hash = dv.getUint16(28, true);
+    const crc = dv.getUint16(30, true);
+    // Recompute CRC
+    let recompute = 0xFFFF; for (let i=0;i<30;i++){ let b = bytes[i]; recompute ^= (b<<8); for(let k=0;k<8;k++){ if (recompute & 0x8000) recompute=(recompute<<1)^0x1021; else recompute<<=1; recompute &= 0xFFFF; } }
+    const tsISO = new Date(ts*1000).toISOString();
+    return {timestamp: tsISO, latitude: lat, longitude: lon, battery_mV: batt, fw:`${fwMaj}.${fwMin}`, flags: '0x'+flags.toString(16).padStart(2,'0'), prey_code: prey, confidence: conf, spectral_hash: hash, crc_ok: crc===recompute, crc: '0x'+crc.toString(16).padStart(4,'0')};
+  }
+  function renderDecoded(obj){
+    const el = $('#decodedPacket');
+    if (!obj){ el.textContent = 'No packet decoded.'; return; }
+    el.textContent = `Timestamp: ${obj.timestamp}\nLatitude: ${obj.latitude.toFixed(6)}\nLongitude: ${obj.longitude.toFixed(6)}\nBattery: ${obj.battery_mV} mV\nFW: ${obj.fw}\nFlags: ${obj.flags}\nPrey Code: ${obj.prey_code||'(ambient)'}\nConfidence: ${obj.confidence.toFixed(2)}\nSpectral Hash: ${obj.spectral_hash}\nCRC: ${obj.crc} (${obj.crc_ok?'OK':'FAIL'})`;
+  }
+  $('#packetDecoderBtn').addEventListener('click', openDecoder);
+  $('#closePacketDecoder').addEventListener('click', closeDecoder);
+  $('#packetDecoderBackdrop').addEventListener('click', (e)=>{ if (e.target.id==='packetDecoderBackdrop') closeDecoder(); });
+  $('#generatePacketBtn').addEventListener('click', async ()=>{
+    const rows = await ensureMakoRows();
+    if (!rows.length){ alert('No Mako-Sense data available.'); return; }
+    const sel = $('#packetEventSelect');
+    const row = rows[parseInt(sel.value||'0',10)] || rows[0];
+    const hex = genMockPacket(row);
+    $('#rawPacketHex').value = hex;
+    $('#decodePacketBtn').disabled = false;
+  });
+  $('#decodePacketBtn').addEventListener('click', ()=>{
+    const hex = $('#rawPacketHex').value.trim();
+    try { const decoded = decodePacket(hex); renderDecoded(decoded); }
+    catch(err){ alert(err.message); }
+  });
 
   // ------------------ Boot ------------------
   async function boot(){

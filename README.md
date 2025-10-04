@@ -56,6 +56,8 @@ To solve this, we designed the **'Mako-Sense'**, a conceptual smart tag that act
 
 Our web app includes a **Mako-Sense Simulation** feature, which demonstrates how a positive prey detection from this tag could be fed back into our model to temporarily boost the TCHI score in a 5km radius, refining our map with real-world biological data.
 
+[**➡️ Click here to explore the full Mako-Sense Hardware & Design Package**](./hardware/)
+
 ### **Full Tech Stack & Architecture**
 * **Backend:** PHP (API), Python (Geospatial Analysis), GDAL
 * **Python Libraries:** Rasterio, NumPy, SciPy

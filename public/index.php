@@ -51,6 +51,8 @@
       <button id="infoBtn" class="btn" aria-haspopup="dialog" aria-controls="infoPop">Info</button>
       <button id="creditsBtn" class="btn" aria-haspopup="dialog" aria-controls="creditsPop">Credits</button>
       <button id="exportBtn" class="btn">Export PNG</button>
+      <button id="trackBtn" class="btn btn-toggle" aria-pressed="false" title="Toggle simulated shark track">Show Shark Track</button>
+      <button id="packetDecoderBtn" class="btn" aria-haspopup="dialog" aria-controls="packetDecoderModal">Packet Decoder</button>
     </div>
   </header>
 
@@ -122,6 +124,36 @@
   <div class="muted">SharkScope by Team Bionauts. <a href="https://github.com/bionauts/sharkscope" style="text-decoration: none;" target="_blank" rel="noopener noreferrer">Click here for License &amp; Usage</a></div>
     <div class="row"><span class="kbd">?</span> for help</div>
   </footer>
+</div>
+
+<!-- Packet Decoder Modal -->
+<div id="packetDecoderBackdrop" class="backdrop" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="packetDecoderTitle">
+    <header><div id="packetDecoderTitle" class="title">Mako‑Sense Packet Decoder</div></header>
+    <div class="body" style="display:flex;flex-direction:column;gap:12px">
+      <div class="row" style="align-items:flex-end;gap:12px;flex-wrap:wrap">
+        <label style="font-size:12px;display:flex;flex-direction:column;gap:4px">Select Event Timestamp
+          <select id="packetEventSelect" style="min-width:220px"></select>
+        </label>
+        <button id="generatePacketBtn" class="btn">Generate Mock Packet</button>
+        <button id="decodePacketBtn" class="btn btn-primary" disabled>Decode</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;min-height:140px">
+        <div style="background:var(--panel);border:1px solid var(--border);padding:8px;border-radius:8px;display:flex;flex-direction:column">
+          <div style="font-size:12px;font-weight:600;margin-bottom:6px">Raw Packet (Hex, 32 bytes)</div>
+          <textarea id="rawPacketHex" spellcheck="false" style="flex:1;font-family:monospace;font-size:12px;line-height:1.3;resize:vertical;min-height:110px" placeholder="Click 'Generate Mock Packet'"></textarea>
+        </div>
+        <div style="background:var(--panel);border:1px solid var(--border);padding:8px;border-radius:8px;display:flex;flex-direction:column">
+          <div style="font-size:12px;font-weight:600;margin-bottom:6px">Decoded Data</div>
+          <div id="decodedPacket" class="muted" style="font-size:12px;white-space:pre-wrap;flex:1">No packet decoded yet.</div>
+        </div>
+      </div>
+      <div class="muted" style="font-size:11px">Structure: [0-3] Timestamp | [4-7] Lat | [8-11] Lon | [12-13] Batt | [14] FW | [15] Flags | [16-23] Prey Code | [24-27] Confidence | [28-29] Spectral Hash | [30-31] CRC16</div>
+    </div>
+    <footer>
+      <button id="closePacketDecoder" class="btn btn-primary">Close</button>
+    </footer>
+  </div>
 </div>
 
 <!-- Info and Credits popovers -->
