@@ -97,7 +97,7 @@ window.SHARKSCOPE_CONFIG = window.SHARKSCOPE_CONFIG || {};
   // Initial view fixed per requirement: 60.73°N, 73.07°W
   const worldBounds = [[-85, -180],[85, 180]]; // exclude extreme poles to avoid projection issues
   map = L.map('map', {
-    worldCopyJump: false, // Disable world wrapping to prevent infinite horizontal scrolling
+    worldCopyJump: true,
     preferCanvas: true, 
     minZoom: 2, 
     maxBounds: worldBounds, 
