@@ -89,6 +89,8 @@ window.SHARKSCOPE_CONFIG = window.SHARKSCOPE_CONFIG || {};
   let map, baseLayer, markerDivIcon, hotspotMarkerGroup, hotspotHeatGroup;
   let sharkTrackGroup, sharkTrackPolyline, sharkEventMarkers = [];
   let sharkTrackVisible = false;
+  // Ensure cachedMakoRows is declared before any function assigns to it (avoid TDZ issues if transpiled/minified)
+  let cachedMakoRows = null;
   let gibsFailed = false;
 
   function initMap(){
@@ -716,7 +718,6 @@ function initSimMaps(lat, lon) {
 
   // ------------------ Packet Decoder Modal ------------------
   let decoderOpen = false;
-  let cachedMakoRows = null;
   function openDecoder(){
     $('#packetDecoderBackdrop').classList.add('open');
     document.body.style.overflow='hidden';
