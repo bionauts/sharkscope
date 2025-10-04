@@ -172,6 +172,3 @@ CRC-16(0..29) -> 0x3A 5F
 
 ## 6. Disclaimer
 Several aspects (miniaturized Raman module ruggedization, long-duration piezo harvesting efficiency in highly mobile pelagics) represent forward-leaning engineering assumptions. This document serves as a **conceptual prototype specification** guiding iterative feasibility trials, not a finalized manufacturing package.
-
----
-**Contact:** For implementation discussions or model integration pathways, see accompanying project `README.md` or reach out to the SharkScope engineering team.

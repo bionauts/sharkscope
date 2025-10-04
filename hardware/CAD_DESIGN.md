@@ -93,6 +93,3 @@ Recommend building the enclosure in a parametric CAD system (e.g., Fusion 360 or
 
 ## 11. Disclaimer
 This CAD specification is a **conceptual design document** for early-stage prototyping. All dimensions, materials, and structural assumptions must be validated through iterative mechanical, hydrodynamic, and bioethical review before field deployment.
-
----
-Prepared for the SharkScope project engineering and modeling teams.

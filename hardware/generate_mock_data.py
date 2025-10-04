@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Generate mock Mako-Sense tag data.
 
 Produces a CSV: makosense_data.csv with columns:
