@@ -96,7 +96,14 @@ window.SHARKSCOPE_CONFIG = window.SHARKSCOPE_CONFIG || {};
   function initMap(){
   // Initial view fixed per requirement: 60.73°N, 73.07°W
   const worldBounds = [[-85, -180],[85, 180]]; // exclude extreme poles to avoid projection issues
-  map = L.map('map', {worldCopyJump:true, preferCanvas:true, minZoom:2, maxBounds: worldBounds, maxBoundsViscosity: 1.0}).setView([60.73,-73.07], 3);
+  map = L.map('map', {
+    worldCopyJump: false, // Disable world wrapping to prevent infinite horizontal scrolling
+    preferCanvas: true, 
+    minZoom: 2, 
+    maxBounds: worldBounds, 
+    maxBoundsViscosity: 1.0, // Prevents panning outside bounds
+    noWrap: true // Prevents tiles from repeating
+  }).setView([60.73,-73.07], 3);
     L.control.scale({ imperial: false }).addTo(map); 
 
     baseLayer = createBaseLayer().addTo(map);
@@ -185,8 +192,6 @@ window.SHARKSCOPE_CONFIG = window.SHARKSCOPE_CONFIG || {};
       return obj;
     });
   }
-
-  $('#trackBtn').addEventListener('click', toggleSharkTrack);
 
   function syncDateInputs(){
     const dateInput = $('#date');
@@ -663,7 +668,8 @@ function createBaseLayer() {
     layer.on('tileerror', () => {
         // Fallback to OpenStreetMap if GIBS fails
         const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OSM contributors'
+            attribution: '© OSM contributors',
+            noWrap: true
         });
         if (layer._map) {
             const map = layer._map;
@@ -812,29 +818,32 @@ function initSimMaps(lat, lon) {
     if (!obj){ el.textContent = 'No packet decoded.'; return; }
     el.textContent = `Timestamp: ${obj.timestamp}\nLatitude: ${obj.latitude.toFixed(6)}\nLongitude: ${obj.longitude.toFixed(6)}\nBattery: ${obj.battery_mV} mV\nFW: ${obj.fw}\nFlags: ${obj.flags}\nPrey Code: ${obj.prey_code||'(ambient)'}\nConfidence: ${obj.confidence.toFixed(2)}\nSpectral Hash: ${obj.spectral_hash}\nCRC: ${obj.crc} (${obj.crc_ok?'OK':'FAIL'})`;
   }
-  $('#packetDecoderBtn').addEventListener('click', openDecoder);
-  $('#closePacketDecoder').addEventListener('click', closeDecoder);
-  $('#packetDecoderBackdrop').addEventListener('click', (e)=>{ if (e.target.id==='packetDecoderBackdrop') closeDecoder(); });
-  $('#generatePacketBtn').addEventListener('click', async ()=>{
-    const rows = await ensureMakoRows();
-    if (!rows.length){ alert('No Mako-Sense data available.'); return; }
-    const sel = $('#packetEventSelect');
-    const row = rows[parseInt(sel.value||'0',10)] || rows[0];
-    const hex = genMockPacket(row);
-    $('#rawPacketHex').value = hex;
-    $('#decodePacketBtn').disabled = false;
-  });
-  $('#decodePacketBtn').addEventListener('click', ()=>{
-    const hex = $('#rawPacketHex').value.trim();
-    try { const decoded = decodePacket(hex); renderDecoded(decoded); }
-    catch(err){ alert(err.message); }
-  });
 
   // ------------------ Boot ------------------
   async function boot(){
     await loadAvailableDates();
     initMap();
     updateURL();
+
+    // Attach event listeners for buttons
+    $('#trackBtn').addEventListener('click', toggleSharkTrack);
+    $('#packetDecoderBtn').addEventListener('click', openDecoder);
+    $('#closePacketDecoder').addEventListener('click', closeDecoder);
+    $('#packetDecoderBackdrop').addEventListener('click', (e)=>{ if (e.target.id==='packetDecoderBackdrop') closeDecoder(); });
+    $('#generatePacketBtn').addEventListener('click', async ()=>{
+      const rows = await ensureMakoRows();
+      if (!rows.length){ alert('No Mako-Sense data available.'); return; }
+      const sel = $('#packetEventSelect');
+      const row = rows[parseInt(sel.value||'0',10)] || rows[0];
+      const hex = genMockPacket(row);
+      $('#rawPacketHex').value = hex;
+      $('#decodePacketBtn').disabled = false;
+    });
+    $('#decodePacketBtn').addEventListener('click', ()=>{
+      const hex = $('#rawPacketHex').value.trim();
+      try { const decoded = decodePacket(hex); renderDecoded(decoded); }
+      catch(err){ alert(err.message); }
+    });
 
     const playBtn = $('#play');
     playBtn.addEventListener('click', ()=>{
