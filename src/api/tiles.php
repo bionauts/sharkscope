@@ -79,56 +79,18 @@ function tileToLatLon($x, $y, $z) {
 }
 
 // Function to create color relief file
-function createColorReliefFile($tempDir, $layerType = 'tchi') {
+function createColorReliefFile($tempDir) {
     $colorFile = $tempDir . '/color_relief.txt';
     
-    // Define color palettes for different layers
-    $colorMaps = [
-        'tchi' => [
-            "0.0 10 25 47",      // Deep blue (#0A192F)
-            "0.2 20 50 94",      // Medium blue
-            "0.4 46 204 113",    // Green (#2ECC71)
-            "0.6 241 196 15",    // Yellow (#F1C40F)
-            "0.8 231 76 60",     // Red (#E74C3C)
-            "1.0 231 76 60"      // Red (#E74C3C)
-        ],
-        'sst' => [
-            "0 0 0 128",         // Dark blue (cold)
-            "10 0 128 255",      // Blue
-            "15 0 255 255",      // Cyan
-            "20 0 255 0",        // Green
-            "25 255 255 0",      // Yellow
-            "30 255 128 0",      // Orange
-            "35 255 0 0"         // Red (hot)
-        ],
-        'chla' => [
-            "0.0 0 0 50",        // Very dark blue (low)
-            "0.1 0 50 100",      // Dark blue
-            "0.5 0 150 150",     // Cyan
-            "1.0 50 200 50",     // Green
-            "5.0 200 200 0",     // Yellow
-            "10.0 255 100 0"     // Orange (high)
-        ],
-        'eke' => [
-            "0 10 10 50",        // Dark (low energy)
-            "50 50 100 150",     // Blue
-            "100 100 150 200",   // Light blue
-            "200 150 200 100",   // Purple
-            "300 200 150 50",    // Orange
-            "500 255 50 50"      // Red (high energy)
-        ],
-        'bathy' => [
-            "0 10 25 47",        // Deep ocean (deep blue)
-            "-1000 20 50 94",    // Deep blue
-            "-500 46 100 150",   // Medium blue
-            "-200 100 150 200",  // Light blue
-            "-50 150 200 220",   // Very light blue
-            "0 200 220 240"      // Near surface
-        ]
+    // Define color palette from deep blue to red
+    $colorMap = [
+        "0.0 10 25 47",      // Deep blue (#0A192F)
+        "0.2 20 50 94",      // Medium blue
+        "0.4 46 204 113",    // Green (#2ECC71)
+        "0.6 241 196 15",    // Yellow (#F1C40F)
+        "0.8 231 76 60",     // Red (#E74C3C)
+        "1.0 231 76 60"      // Red (#E74C3C)
     ];
-    
-    // Use TCHI palette as default
-    $colorMap = $colorMaps[$layerType] ?? $colorMaps['tchi'];
     
     $content = implode("\n", $colorMap) . "\n";
     
@@ -145,14 +107,6 @@ $date = $_GET['date'] ?? '';
 $z = isset($_GET['z']) ? intval($_GET['z']) : -1;
 $x = isset($_GET['x']) ? intval($_GET['x']) : -1;
 $y = isset($_GET['y']) ? intval($_GET['y']) : -1;
-$layer = $_GET['layer'] ?? 'tchi'; // Default to TCHI layer
-
-// Validate layer type
-$validLayers = ['tchi', 'sst', 'chla', 'eke', 'bathy'];
-if (!in_array($layer, $validLayers)) {
-    logError("Invalid layer type: $layer");
-    returnBlankTile();
-}
 
 // Validate date format
 if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
@@ -175,32 +129,17 @@ if ($x < 0 || $x >= $maxTiles || $y < 0 || $y >= $maxTiles) {
 
 // Define paths
 $dataPath = $config['paths']['data_dir'] . "/processed/$date";
+$tchiFile = $dataPath . "/tchi.tif";
 
-// Map layer names to their file names
-$layerFiles = [
-    'tchi' => 'tchi.tif',
-    'sst' => 'sst_proc.tif',
-    'chla' => 'chla_proc.tif',
-    'eke' => 'eke_proc.tif',
-    'bathy' => 'bathy_proc.tif'
-];
-
-// Special case: bathy uses static file instead of processed date
-if ($layer === 'bathy') {
-    $dataFile = $config['paths']['data_dir'] . "/static/bathymetry.tif";
-} else {
-    $dataFile = $dataPath . "/" . $layerFiles[$layer];
-}
-
-// Check if data file exists
-if (!file_exists($dataFile)) {
-    logError("$layer file not found: $dataFile");
+// Check if TCHI file exists
+if (!file_exists($tchiFile)) {
+    logError("TCHI file not found: $tchiFile");
     returnBlankTile();
 }
 
 // Detect Git LFS pointer file and bail early with a clear log
-if (isLfsPointer($dataFile)) {
-    logError("$layer file appears to be a Git LFS pointer. Replace with the actual GeoTIFF (binary) at: $dataFile");
+if (isLfsPointer($tchiFile)) {
+    logError("TCHI file appears to be a Git LFS pointer. Replace with the actual GeoTIFF (binary) at: $tchiFile");
     returnBlankTile();
 }
 
@@ -242,7 +181,7 @@ try {
         $bounds['maxLat'],
         $bounds['maxLon'],
         $bounds['minLat'],
-        $dataFile,
+        $tchiFile,
         $tempTile
     );
     
@@ -255,7 +194,7 @@ try {
     }
     
     // Step 2: Create color relief file
-    $colorFile = createColorReliefFile($tempDir, $layer);
+    $colorFile = createColorReliefFile($tempDir);
     if (!$colorFile) {
         returnBlankTile();
     }

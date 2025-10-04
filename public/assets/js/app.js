@@ -92,39 +92,6 @@ window.SHARKSCOPE_CONFIG = window.SHARKSCOPE_CONFIG || {};
   // Ensure cachedMakoRows is declared before any function assigns to it (avoid TDZ issues if transpiled/minified)
   let cachedMakoRows = null;
   let gibsFailed = false;
-  // Overlay layers for variables
-  let sstLayer, chlaLayer, ekeLayer, bathyLayer;
-
-  // Helper function to generate tile URLs with layer and date parameters
-  function tileUrl(layerName) {
-    return `${TILE_BASE_URL}?date=${state.date}&layer=${layerName}&z={z}&x={x}&y={y}`;
-  }
-
-  // Initialize overlay layers for different variables
-  function initializeOverlayLayers() {
-    const options = { opacity: 0.7, attribution: 'SharkScope | NASA Earthdata' };
-
-    sstLayer = L.tileLayer(tileUrl('sst'), options);
-    chlaLayer = L.tileLayer(tileUrl('chla'), options);
-    ekeLayer = L.tileLayer(tileUrl('eke'), options);
-    bathyLayer = L.tileLayer(tileUrl('bathy'), options);
-  }
-
-  // Update overlay layer URLs when date changes
-  function updateOverlayLayers() {
-    if (sstLayer && map.hasLayer(sstLayer)) {
-      sstLayer.setUrl(tileUrl('sst'));
-    }
-    if (chlaLayer && map.hasLayer(chlaLayer)) {
-      chlaLayer.setUrl(tileUrl('chla'));
-    }
-    if (ekeLayer && map.hasLayer(ekeLayer)) {
-      ekeLayer.setUrl(tileUrl('eke'));
-    }
-    if (bathyLayer && map.hasLayer(bathyLayer)) {
-      bathyLayer.setUrl(tileUrl('bathy'));
-    }
-  }
 
   function initMap(){
   // Initial view fixed per requirement: 60.73°N, 73.07°W
@@ -151,10 +118,7 @@ window.SHARKSCOPE_CONFIG = window.SHARKSCOPE_CONFIG || {};
       overlayPane.style.pointerEvents = 'none';
     }
     hotspotHeatGroup = L.layerGroup().addTo(map);
-    sharkTrackGroup = L.layerGroup().addTo(map);
-
-    // Initialize overlay layers for variables
-    initializeOverlayLayers();
+  sharkTrackGroup = L.layerGroup().addTo(map);
 
     map.on('click', (e)=>{
       state.selected = [e.latlng.lat, e.latlng.lng];
@@ -265,7 +229,6 @@ window.SHARKSCOPE_CONFIG = window.SHARKSCOPE_CONFIG || {};
     state.date = state.availableDates[state.dateIndex];
     syncDateInputs();
     drawRestaurants(true);
-    updateOverlayLayers(); // Update overlay layer URLs with new date
     updateURL();
     analyzePoint();
   }
@@ -481,35 +444,6 @@ window.SHARKSCOPE_CONFIG = window.SHARKSCOPE_CONFIG || {};
     updateURL();
   }
   $('#restaurantsBtn').addEventListener('click', ()=> setRestaurantsToggle(!state.restaurantsOn));
-
-  // ------------------ Layer Toggles ------------------
-  function setupLayerToggles() {
-    const layers = {
-      'toggle-sst': sstLayer,
-      'toggle-chla': chlaLayer,
-      'toggle-eke': ekeLayer,
-      'toggle-bathy': bathyLayer
-    };
-
-    for (const [toggleId, layer] of Object.entries(layers)) {
-      const toggle = $(`#${toggleId}`);
-      if (toggle) {
-        toggle.addEventListener('change', (event) => {
-          if (event.currentTarget.checked) {
-            if (!map.hasLayer(layer)) {
-              // Ensure URL has current date
-              layer.setUrl(tileUrl(toggleId.replace('toggle-', '')));
-              map.addLayer(layer);
-            }
-          } else {
-            if (map.hasLayer(layer)) {
-              map.removeLayer(layer);
-            }
-          }
-        });
-      }
-    }
-  }
 
   // ------------------ Sidebar analysis ------------------
   const FACTOR_CONFIG = [
@@ -890,7 +824,6 @@ function initSimMaps(lat, lon) {
     await loadAvailableDates();
     initMap();
     updateURL();
-    setupLayerToggles(); // Setup layer toggle controls
 
     // Attach event listeners for buttons
     $('#trackBtn').addEventListener('click', toggleSharkTrack);
