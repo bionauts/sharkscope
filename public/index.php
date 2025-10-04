@@ -10,6 +10,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <!-- Bootstrap 5 for form controls -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -106,6 +108,36 @@
       <div class="card">
         <div class="title">Factor contributions</div>
         <div class="bars" id="factorBars"></div>
+      </div>
+
+      <div class="card">
+        <div class="title">Variable Map Layers</div>
+        <div class="list-group">
+          <label class="list-group-item d-flex justify-content-between align-items-center">
+            Temperature (SST)
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" role="switch" id="toggle-sst">
+            </div>
+          </label>
+          <label class="list-group-item d-flex justify-content-between align-items-center">
+            Food-Rich Water (Chl-a)
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" role="switch" id="toggle-chla">
+            </div>
+          </label>
+          <label class="list-group-item d-flex justify-content-between align-items-center">
+            Ocean Whirlpools (EKE)
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" role="switch" id="toggle-eke">
+            </div>
+          </label>
+          <label class="list-group-item d-flex justify-content-between align-items-center">
+            Bathymetry
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" role="switch" id="toggle-bathy">
+            </div>
+          </label>
+        </div>
       </div>
 
       <div class="card">
